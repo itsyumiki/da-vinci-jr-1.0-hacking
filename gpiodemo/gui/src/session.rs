@@ -170,8 +170,36 @@ impl fmt::Display for Mode {
 }
 
 impl Mode {
+    pub(super) const ALL: &'static [Self] = &[Self::Input, Self::InputPullup, Self::Output];
+    const INPUT_ONLY: &'static [Self] = &[Self::Input];
+    const OUTPUT_ONLY: &'static [Self] = &[Self::Output];
+    const INPUT_WITH_PULLUP: &'static [Self] = &[Self::Input, Self::InputPullup];
+    const INPUT_OUTPUT: &'static [Self] = &[Self::Input, Self::Output];
+
     pub(super) const fn is_input(self) -> bool {
         matches!(self, Self::Input | Self::InputPullup)
+    }
+
+    pub(super) const fn available_for(capabilities: PinCapabilities) -> &'static [Self] {
+        Self::available(
+            capabilities.input(),
+            capabilities.output(),
+            capabilities.pull_up(),
+        )
+    }
+
+    pub(super) fn available_for_any(
+        capabilities: impl IntoIterator<Item = PinCapabilities>,
+    ) -> &'static [Self] {
+        let mut input = false;
+        let mut output = false;
+        let mut pull_up = false;
+        for capabilities in capabilities {
+            input |= Self::Input.supported_by(capabilities);
+            output |= Self::Output.supported_by(capabilities);
+            pull_up |= Self::InputPullup.supported_by(capabilities);
+        }
+        Self::available(input, output, pull_up)
     }
 
     pub(super) const fn supported_by(self, capabilities: PinCapabilities) -> bool {
@@ -179,6 +207,17 @@ impl Mode {
             Self::Input => capabilities.input(),
             Self::InputPullup => capabilities.input() && capabilities.pull_up(),
             Self::Output => capabilities.output(),
+        }
+    }
+
+    const fn available(input: bool, output: bool, pull_up: bool) -> &'static [Self] {
+        match (input, output, pull_up) {
+            (false, false, _) => &[],
+            (true, false, false) => Self::INPUT_ONLY,
+            (false, true, _) => Self::OUTPUT_ONLY,
+            (true, false, true) => Self::INPUT_WITH_PULLUP,
+            (true, true, false) => Self::INPUT_OUTPUT,
+            (true, true, true) => Self::ALL,
         }
     }
 
@@ -1393,6 +1432,18 @@ fn request_lifetime(request: Request) -> RequestLifetime {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mode_availability_follows_pin_capabilities() {
+        assert_eq!(Mode::available_for(PinCapabilities::NONE), []);
+        assert_eq!(Mode::available_for(PinCapabilities::INPUT), [Mode::Input]);
+        assert_eq!(
+            Mode::available_for(PinCapabilities::INPUT_PULLUP),
+            [Mode::Input, Mode::InputPullup]
+        );
+        assert_eq!(Mode::available_for(PinCapabilities::OUTPUT), [Mode::Output]);
+        assert_eq!(Mode::available_for(PinCapabilities::GPIO), Mode::ALL);
+    }
 
     fn setup() -> (DeviceSession, RouteKey, RouteKey, PinKey, PinKey, BankKey) {
         let mut connection = DeviceSession::spawn(&["SAM", "LPC"]);

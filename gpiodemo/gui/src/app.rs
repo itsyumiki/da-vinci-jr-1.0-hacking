@@ -22,8 +22,6 @@ const ROUTES: [&str; 2] = ["SAM", "LPC"];
 
 type Request = RoutedRequest;
 
-pub(super) const MODES: [Mode; 3] = [Mode::Input, Mode::InputPullup, Mode::Output];
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ScopeChoice {
     target: RoutedTarget,
@@ -487,19 +485,13 @@ impl App {
         self.selected_route.key
     }
 
-    pub(super) fn bulk_modes(&self) -> Vec<Mode> {
+    pub(super) fn bulk_modes(&self) -> &'static [Mode] {
         let route = self.selected_route_key();
         let pins = self.session.target_pins(route, self.bulk_scope.target);
-        MODES
-            .into_iter()
-            .filter(|mode| {
-                pins.iter().any(|&pin| {
-                    self.session
-                        .pin_info(pin)
-                        .is_some_and(|info| mode.supported_by(info.capabilities))
-                })
-            })
-            .collect()
+        Mode::available_for_any(
+            pins.into_iter()
+                .filter_map(|pin| self.session.pin_info(pin).map(|info| info.capabilities)),
+        )
     }
 
     fn normalize_bulk_mode(&mut self) {

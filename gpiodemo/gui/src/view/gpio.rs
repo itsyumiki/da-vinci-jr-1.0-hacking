@@ -1,4 +1,4 @@
-use da_vinci_protocol::{Level, PinCapabilities};
+use da_vinci_protocol::Level;
 use iced::{
     Background, Border, Element, Length,
     alignment::{Horizontal, Vertical},
@@ -7,7 +7,7 @@ use iced::{
 
 use super::{CONTROL_TEXT_SIZE, danger_native_button, native_button};
 use crate::{
-    app::{App, BankGroup, MODES, Message},
+    app::{App, BankGroup, Message},
     session::{BankKey, ListenerState, Mode, PinKey, PinState},
     theme::{HIGH_BG, LOW_BG, UI_TEXT, UNSET_BG, input_style, panel_style, selected_tab_button},
 };
@@ -239,9 +239,11 @@ impl App {
             .style(input_style)
             .into()
         } else {
-            pick_list(pin_modes(info.capabilities), state.mode, move |mode| {
-                Message::ModeSelected(pin, mode)
-            })
+            pick_list(
+                Mode::available_for(info.capabilities),
+                state.mode,
+                move |mode| Message::ModeSelected(pin, mode),
+            )
             .placeholder("UNSET")
             .text_size(PIN_CONTROL_TEXT_SIZE)
             .padding([5, 8])
@@ -294,21 +296,6 @@ impl App {
         .height(Length::Fixed(ROW_HEIGHT))
         .align_y(iced::Alignment::Center)
         .into()
-    }
-}
-
-fn pin_modes(capabilities: PinCapabilities) -> &'static [Mode] {
-    match (
-        capabilities.input(),
-        capabilities.pull_up(),
-        capabilities.output(),
-    ) {
-        (false, _, false) => &[],
-        (true, false, false) => &[Mode::Input],
-        (true, true, false) => &[Mode::Input, Mode::InputPullup],
-        (false, _, true) => &[Mode::Output],
-        (true, false, true) => &[Mode::Input, Mode::Output],
-        (true, true, true) => &MODES,
     }
 }
 
@@ -394,21 +381,4 @@ fn level_box(level: Option<Level>, pending: bool) -> Element<'static, Message> {
             ..Default::default()
         })
         .into()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pin_modes_follow_discovered_capabilities() {
-        assert_eq!(pin_modes(PinCapabilities::NONE), []);
-        assert_eq!(pin_modes(PinCapabilities::INPUT), [Mode::Input]);
-        assert_eq!(
-            pin_modes(PinCapabilities::INPUT_PULLUP),
-            [Mode::Input, Mode::InputPullup]
-        );
-        assert_eq!(pin_modes(PinCapabilities::OUTPUT), [Mode::Output]);
-        assert_eq!(pin_modes(PinCapabilities::GPIO), MODES);
-    }
 }
