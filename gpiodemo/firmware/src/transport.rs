@@ -28,13 +28,12 @@ impl<B> FramedLink<B> {
 }
 
 impl<B: NonBlockingBytes> FrameLink for FramedLink<B> {
-    fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError> {
-        let frame = Frame::try_from(frame).map_err(|_| FrameError::InvalidFrame)?;
+    fn try_send(&mut self, frame: &Frame) -> Result<(), FrameError> {
         self.transport
             .poll(&mut self.bytes)
             .map_err(FrameError::from)?;
         self.transport
-            .enqueue(frame)
+            .enqueue(*frame)
             .map_err(|QueueError::Busy| FrameError::WouldBlock)?;
         self.transport
             .poll(&mut self.bytes)
@@ -45,9 +44,10 @@ impl<B: NonBlockingBytes> FrameLink for FramedLink<B> {
         self.transport
             .poll(&mut self.bytes)
             .map_err(FrameError::from)?;
-        self.transport
-            .next_frame()
-            .map_err(|LineError::TooLong| FrameError::InvalidFrame)
+        match self.transport.next_frame() {
+            Ok(frame) => Ok(frame),
+            Err(LineError::TooLong) => Ok(None),
+        }
     }
 }
 
@@ -368,8 +368,9 @@ mod framed_link_tests {
             write_limit: 3,
         };
         let mut link = FramedLink::new(bytes);
+        let request = Frame::try_from(b"200 LPC HAI\n".as_slice()).unwrap();
 
-        assert_eq!(link.try_send(b"200 LPC HAI\n"), Ok(()));
+        assert_eq!(link.try_send(&request), Ok(()));
 
         let mut response = None;
         for _ in 0..8 {
@@ -380,22 +381,5 @@ mod framed_link_tests {
 
         assert_eq!(link.bytes.writes, b"200 LPC HAI\n");
         assert_eq!(response, Some(b"200 LPC HII :3\n".to_vec()));
-    }
-
-    #[test]
-    fn framed_link_rejects_oversized_send_without_marking_bytes_down() {
-        let bytes = Bytes {
-            reads: VecDeque::new(),
-            writes: Vec::new(),
-            write_limit: usize::MAX,
-        };
-        let mut link = FramedLink::new(bytes);
-
-        assert_eq!(
-            link.try_send(&[b'x'; MAX_PACKET_LEN + 1]),
-            Err(FrameError::InvalidFrame)
-        );
-        assert_eq!(link.try_send(b"200 LPC HAI\n"), Ok(()));
-        assert_eq!(link.bytes.writes, b"200 LPC HAI\n");
     }
 }

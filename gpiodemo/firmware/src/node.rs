@@ -1,6 +1,5 @@
 use da_vinci_protocol::{
-    DecodeError, DecodeErrorKind, DecodedRequest, Frame, Message, Packet, RawMessage, Response,
-    ResponseError,
+    DecodeError, DecodeErrorKind, DecodedRequest, Frame, Message, Packet, Response, ResponseError,
 };
 
 use crate::{
@@ -97,21 +96,19 @@ impl<'route, const N: usize> Node<'route, N> {
         let Ok(Some(frame)) = self.upstream.next_frame() else {
             return false;
         };
-        match RawMessage::try_from(&frame) {
-            Ok(envelope) => {
-                let firmware = &mut self.firmware;
-                let response = self.router.dispatch(frame.as_ref(), envelope, |raw| {
-                    Message::<&[u8], DecodedRequest<'_>>::try_from(raw)
-                        .map(|message| firmware.handle(message.packet, gpio))
-                        .unwrap_or_else(|error| {
-                            decode_error_response::<&[u8]>(error)
-                                .expect("local command decode errors keep their ID")
-                        })
-                });
-                if let Some(response) = response {
-                    queue_response(&mut self.upstream, self.router.local_route(), response);
-                }
+        let firmware = &mut self.firmware;
+        match self.router.dispatch(&frame, |raw| {
+            Message::<&[u8], DecodedRequest<'_>>::try_from(raw)
+                .map(|message| firmware.handle(message.packet, gpio))
+                .unwrap_or_else(|error| {
+                    decode_error_response::<&[u8]>(error)
+                        .expect("local command decode errors keep their ID")
+                })
+        }) {
+            Ok(Some(response)) => {
+                queue_response(&mut self.upstream, self.router.local_route(), response);
             }
+            Ok(None) => {}
             Err(error) => {
                 if let Some(response) = decode_error_response::<&[u8]>(error) {
                     queue_response(&mut self.upstream, self.router.local_route(), response);
@@ -286,8 +283,8 @@ mod tests {
     }
 
     impl FrameLink for FakeFrameLink {
-        fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError> {
-            self.sent.borrow_mut().push(frame.to_vec());
+        fn try_send(&mut self, frame: &Frame) -> Result<(), FrameError> {
+            self.sent.borrow_mut().push(frame.as_ref().to_vec());
             Ok(())
         }
 
