@@ -105,6 +105,21 @@ pub struct DecodeError {
     pub kind: DecodeErrorKind,
 }
 
+impl core::fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match (self.id, self.kind) {
+            (Some(id), DecodeErrorKind::Malformed) => write!(f, "malformed packet {id}"),
+            (Some(id), DecodeErrorKind::UnknownCommand) => {
+                write!(f, "unknown command in packet {id}")
+            }
+            (None, DecodeErrorKind::Malformed) => f.write_str("malformed packet"),
+            (None, DecodeErrorKind::UnknownCommand) => f.write_str("unknown command"),
+        }
+    }
+}
+
+impl core::error::Error for DecodeError {}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EncodeError {
     OutputTooSmall,
@@ -112,6 +127,19 @@ pub enum EncodeError {
     InvalidTargetToken,
     InvalidIdentity,
 }
+
+impl core::fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::OutputTooSmall => "encoded packet exceeds frame capacity",
+            Self::InvalidRouteToken => "invalid route token",
+            Self::InvalidTargetToken => "invalid target token",
+            Self::InvalidIdentity => "invalid identity token",
+        })
+    }
+}
+
+impl core::error::Error for EncodeError {}
 
 fn decode_message(line: &[u8]) -> Result<RawMessage<'_>, DecodeError> {
     let (id_token, rest) = next_token(line).ok_or(DecodeError {

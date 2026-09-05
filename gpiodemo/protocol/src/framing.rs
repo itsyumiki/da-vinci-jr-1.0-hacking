@@ -39,6 +39,14 @@ pub enum LineError {
     TooLong,
 }
 
+impl core::fmt::Display for LineError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("line exceeds maximum packet length")
+    }
+}
+
+impl core::error::Error for LineError {}
+
 pub struct LineBuffer {
     bytes: [u8; MAX_PACKET_LEN],
     len: usize,

@@ -67,6 +67,15 @@ pub(super) struct PinInfo {
     pub(super) capabilities: PinCapabilities,
 }
 
+impl fmt::Display for PinInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.package_pin {
+            Some(package_pin) => write!(f, "{} ({package_pin})", self.token),
+            None => f.write_str(&self.token),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Event {
     Connected(String),
@@ -823,7 +832,7 @@ impl DeviceSession {
         if let Some(id) = error.id {
             self.retire(id);
         }
-        Err(format!("Malformed response: {error:?}"))
+        Err(format!("Malformed response: {error}"))
     }
 
     fn prepare(&mut self, route: RouteKey, request: Request) -> Result<(RequestId, Frame), String> {

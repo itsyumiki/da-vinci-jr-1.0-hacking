@@ -13,7 +13,7 @@ use crate::{
         BankKey, DeviceEvent, DeviceSession, Event as ConnectionEvent, Mode, PinKey,
         Request as RoutedRequest, ResponseError, RouteKey, Target as RoutedTarget,
     },
-    view::{self, pin_display},
+    view,
 };
 
 const MAX_IO_EVENTS_PER_TICK: usize = 256;
@@ -699,11 +699,8 @@ impl App {
                 );
             }
             DeviceEvent::Help { route, command } => {
-                self.device_status = format!(
-                    "{} supports {}",
-                    self.session.route_name(route),
-                    String::from_utf8_lossy(command.as_ref())
-                );
+                self.device_status =
+                    format!("{} supports {command}", self.session.route_name(route));
             }
             DeviceEvent::MapReady { route } => {
                 if route == self.selected_route_key() {
@@ -764,7 +761,7 @@ impl App {
     fn routed_pin_display(&self, pin: PinKey) -> String {
         self.session
             .pin_info(pin)
-            .map_or_else(|| "unknown pin".into(), pin_display)
+            .map_or_else(|| "unknown pin".into(), ToString::to_string)
     }
 
     fn push_log(&mut self, text: String) {

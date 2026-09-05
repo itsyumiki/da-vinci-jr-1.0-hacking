@@ -9,7 +9,6 @@ use iced::{
 
 use crate::{
     app::{App, Message, PaneKind},
-    session::PinInfo,
     theme::{WINDOW_BG, danger_button, neutral_button},
 };
 
@@ -62,8 +61,4 @@ pub(super) fn danger_native_button<'a>(
     label: impl text::IntoFragment<'a>,
 ) -> iced::widget::Button<'a, Message> {
     native_button(label).style(danger_button)
-}
-
-pub(super) fn pin_display(pin: &PinInfo) -> String {
-    gpio::pin_display(pin)
 }

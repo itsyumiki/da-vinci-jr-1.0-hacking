@@ -38,6 +38,14 @@ macro_rules! wire_enum {
             }
         }
 
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let token = core::str::from_utf8(self.as_ref())
+                    .expect("wire enum tokens are ASCII literals");
+                f.write_str(token)
+            }
+        }
+
         impl TryFrom<&[u8]> for $name {
             type Error = ParseTokenError;
 

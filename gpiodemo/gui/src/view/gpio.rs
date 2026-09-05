@@ -8,7 +8,7 @@ use iced::{
 use super::{CONTROL_TEXT_SIZE, danger_native_button, native_button};
 use crate::{
     app::{App, BankGroup, MODES, Message},
-    session::{BankKey, ListenerState, Mode, PinInfo, PinKey, PinState},
+    session::{BankKey, ListenerState, Mode, PinKey, PinState},
     theme::{HIGH_BG, LOW_BG, UI_TEXT, UNSET_BG, input_style, panel_style, selected_tab_button},
 };
 
@@ -206,7 +206,7 @@ impl App {
         let Some(info) = self.session.pin_info(pin) else {
             return text("Unknown pin").into();
         };
-        let name = pin_cell(text(pin_display(info)).size(12), PIN_NAME_SHARE);
+        let name = pin_cell(text(info.to_string()).size(12), PIN_NAME_SHARE);
         if !info.capabilities.available() {
             return row![
                 name,
@@ -394,13 +394,6 @@ fn level_box(level: Option<Level>, pending: bool) -> Element<'static, Message> {
             ..Default::default()
         })
         .into()
-}
-
-pub(super) fn pin_display(pin: &PinInfo) -> String {
-    match pin.package_pin {
-        Some(package_pin) => format!("{} ({package_pin})", pin.token),
-        None => pin.token.clone(),
-    }
 }
 
 #[cfg(test)]
