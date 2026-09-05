@@ -1,14 +1,12 @@
 use std::{array, fmt};
 
 use da_vinci_protocol::{
-    Command, DecodeError, Direction, Frame, Level, MAX_PACKET_LEN, Message, Packet,
-    PinCapabilities, Query, QueryValue, Request as ProtocolRequest, RequestId,
-    ResponseError as ProtocolResponseError, Toggle,
+    Command, DecodeError, DecodedResponse, Direction, Frame, Level, MAX_PACKET_LEN, Message,
+    Packet, PinCapabilities, Query, QueryValue, RawMessage, Request as ProtocolRequest, RequestId,
+    Response as ProtocolResponse, ResponseError as ProtocolResponseError, Toggle,
 };
 
-use crate::io::{
-    IoEvent, ListenerKey, ListenerPin, ListenerRoute, OwnedResponse, SerialIo, WireResponse,
-};
+use crate::io::{IoEvent, ListenerKey, ListenerPin, ListenerRoute, SerialIo};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct RouteKey(usize);
@@ -310,28 +308,35 @@ impl MapBuilder {
         }
     }
 
-    fn bank(&mut self, token: String) -> Result<(), String> {
-        if self.banks.iter().any(|bank| bank == &token) {
-            return Err(format!("Duplicate MAP bank {token}"));
+    fn bank(&mut self, token: &[u8]) -> Result<(), String> {
+        let text = String::from_utf8_lossy(token);
+        if self.banks.iter().any(|bank| bank.as_bytes() == token) {
+            return Err(format!("Duplicate MAP bank {text}"));
         }
-        self.banks.push(token);
+        self.banks.push(text.into_owned());
         Ok(())
     }
 
     fn pin(
         &mut self,
-        token: String,
+        token: &[u8],
         package_pin: Option<u16>,
-        bank_token: String,
+        bank_token: &[u8],
         bit: u8,
         capabilities: PinCapabilities,
     ) -> Result<(), String> {
-        if self.pins.iter().any(|pin| pin.token == token) {
-            return Err(format!("Duplicate MAP pin {token}"));
+        let token_text = String::from_utf8_lossy(token);
+        let bank_text = String::from_utf8_lossy(bank_token);
+        if self.pins.iter().any(|pin| pin.token.as_bytes() == token) {
+            return Err(format!("Duplicate MAP pin {token_text}"));
         }
-        let Some(bank_index) = self.banks.iter().position(|bank| bank == &bank_token) else {
+        let Some(bank_index) = self
+            .banks
+            .iter()
+            .position(|bank| bank.as_bytes() == bank_token)
+        else {
             return Err(format!(
-                "MAP pin {token} references unknown bank {bank_token}"
+                "MAP pin {token_text} references unknown bank {bank_text}"
             ));
         };
         if self
@@ -339,10 +344,10 @@ impl MapBuilder {
             .iter()
             .any(|pin| pin.bank.index == bank_index && pin.bit == bit)
         {
-            return Err(format!("Duplicate MAP bank bit {bank_token}:{bit}"));
+            return Err(format!("Duplicate MAP bank bit {bank_text}:{bit}"));
         }
         self.pins.push(PinInfo {
-            token,
+            token: token_text.into_owned(),
             package_pin,
             bank: BankKey {
                 route: self.route,
@@ -416,6 +421,7 @@ impl DeviceSession {
         &self.routes[route.0].name
     }
 
+    #[cfg(test)]
     pub(super) fn pin_key(&self, route: RouteKey, token: &str) -> Option<PinKey> {
         self.routes
             .get(route.0)?
@@ -828,11 +834,8 @@ impl DeviceSession {
                     self.clear();
                     return Some(Event::Disconnected(reason));
                 }
-                IoEvent::Line { line, packet } => {
-                    let event = match packet {
-                        Ok(packet) => self.received(packet),
-                        Err(error) => self.malformed_response(error),
-                    };
+                IoEvent::Line(line) => {
+                    let event = self.received_frame(&line);
                     return Some(Event::Received {
                         line: frame_text(&line),
                         event,
@@ -854,6 +857,18 @@ impl DeviceSession {
             self.retire(id);
         }
         Err(format!("Malformed response: {error}"))
+    }
+
+    fn received_frame(&mut self, frame: &Frame) -> Result<DeviceEvent, String> {
+        let raw = match RawMessage::try_from(frame) {
+            Ok(raw) => raw,
+            Err(error) => return self.malformed_response(error),
+        };
+        let incoming = match Message::<&[u8], DecodedResponse<'_>>::try_from(raw) {
+            Ok(incoming) => incoming,
+            Err(error) => return self.malformed_response(error),
+        };
+        self.received(incoming)
     }
 
     fn prepare(&mut self, route: RouteKey, request: Request) -> Result<(RequestId, Frame), String> {
@@ -923,63 +938,66 @@ impl DeviceSession {
             })
     }
 
-    fn received(&mut self, incoming: OwnedResponse) -> Result<DeviceEvent, String> {
+    fn received(
+        &mut self,
+        incoming: Message<&[u8], DecodedResponse<'_>>,
+    ) -> Result<DeviceEvent, String> {
         let id = incoming.packet.id;
         let Some(pending) = self.pending[id.slot()] else {
             return Ok(DeviceEvent::Untracked);
         };
         let routing_error = matches!(
             incoming.packet.body,
-            WireResponse::Error(
+            ProtocolResponse::Error(
                 ProtocolResponseError::NoRoute { .. }
                     | ProtocolResponseError::RouteBusy { .. }
                     | ProtocolResponseError::RouteDown { .. }
             )
         );
         let expected = self.route_name(pending.route);
-        if !routing_error && incoming.route != expected {
+        if !routing_error && incoming.route != expected.as_bytes() {
             return Err(format!(
                 "Response {id} came from {}, expected {expected}",
-                incoming.route
+                String::from_utf8_lossy(incoming.route)
             ));
         }
 
         match incoming.packet.body {
-            WireResponse::Hello => {
+            ProtocolResponse::Hello => {
                 self.complete(id, false);
                 Ok(DeviceEvent::Hello {
                     route: pending.route,
                 })
             }
-            WireResponse::Status { identity } => {
+            ProtocolResponse::Status { identity } => {
                 self.complete(id, false);
                 Ok(DeviceEvent::Status {
                     route: pending.route,
-                    identity,
+                    identity: String::from_utf8_lossy(identity).into_owned(),
                 })
             }
-            WireResponse::Version { version } => {
+            ProtocolResponse::Version { version } => {
                 self.complete(id, false);
                 Ok(DeviceEvent::Version {
                     route: pending.route,
                     version,
                 })
             }
-            WireResponse::Help { command } => {
+            ProtocolResponse::Help { command } => {
                 self.complete(id, false);
                 Ok(DeviceEvent::Help {
                     route: pending.route,
                     command,
                 })
             }
-            WireResponse::MapBank { bank } => {
+            ProtocolResponse::MapBank { bank } => {
                 if let Err(error) = self.require_map(pending, id).and_then(|map| map.bank(bank)) {
                     self.retire(id);
                     return Err(error);
                 }
                 Ok(DeviceEvent::Untracked)
             }
-            WireResponse::MapPin {
+            ProtocolResponse::MapPin {
                 target,
                 package_pin,
                 bank,
@@ -995,9 +1013,9 @@ impl DeviceSession {
                 }
                 Ok(DeviceEvent::Untracked)
             }
-            WireResponse::Ack => self.ack(id, pending),
-            WireResponse::Value { target, level } => {
-                let pin = match self.resolve_pin(pending.route, &target) {
+            ProtocolResponse::Ack => self.ack(id, pending),
+            ProtocolResponse::Value { target, level } => {
+                let pin = match self.resolve_pin(pending.route, target) {
                     Ok(pin) => pin,
                     Err(error) => {
                         self.retire(id);
@@ -1011,12 +1029,12 @@ impl DeviceSession {
                 self.complete(id, false);
                 Ok(DeviceEvent::PinValue { pin, level })
             }
-            WireResponse::State {
+            ProtocolResponse::State {
                 target,
                 what,
                 value,
             } => {
-                let pin = match self.resolve_pin(pending.route, &target) {
+                let pin = match self.resolve_pin(pending.route, target) {
                     Ok(pin) => pin,
                     Err(error) => {
                         self.retire(id);
@@ -1027,29 +1045,31 @@ impl DeviceSession {
                 self.complete(id, false);
                 Ok(DeviceEvent::PinState { pin, what, value })
             }
-            WireResponse::Error(error) => {
-                let error =
-                    match error.try_map(|target| self.resolve_pin(pending.route, &target), Ok) {
-                        Ok(error) => error,
-                        Err(error) => {
-                            self.retire(id);
-                            return Err(error);
-                        }
-                    };
+            ProtocolResponse::Error(error) => {
+                let error = match error.try_map(
+                    |target| self.resolve_pin(pending.route, target),
+                    |data| Ok::<_, String>(String::from_utf8_lossy(data).into_owned()),
+                ) {
+                    Ok(error) => error,
+                    Err(error) => {
+                        self.retire(id);
+                        return Err(error);
+                    }
+                };
                 self.retire(id);
                 Ok(DeviceEvent::DeviceError {
                     route: pending.route,
-                    source: incoming.route,
+                    source: String::from_utf8_lossy(incoming.route).into_owned(),
                     error,
                 })
             }
-            WireResponse::Unknown => {
+            ProtocolResponse::Unknown => {
                 self.retire(id);
                 Ok(DeviceEvent::Unknown {
                     route: pending.route,
                 })
             }
-            WireResponse::Bye => {
+            ProtocolResponse::Bye => {
                 self.reset_route(pending.route);
                 Ok(DeviceEvent::Bye {
                     route: pending.route,
@@ -1069,11 +1089,22 @@ impl DeviceSession {
             .ok_or_else(|| format!("MAP response for {id} has no active discovery"))
     }
 
-    fn resolve_pin(&self, route: RouteKey, token: &str) -> Result<PinKey, String> {
-        self.pin_key(route, token).ok_or_else(|| {
+    fn resolve_pin(&self, route: RouteKey, token: &[u8]) -> Result<PinKey, String> {
+        let pin = self
+            .routes
+            .get(route.0)
+            .and_then(|route| route.map.as_ref())
+            .and_then(|map| {
+                map.pins
+                    .iter()
+                    .position(|pin| pin.info.token.as_bytes() == token)
+            })
+            .map(|index| PinKey { route, index });
+        pin.ok_or_else(|| {
             format!(
-                "{} response referenced undiscovered pin {token}",
-                self.route_name(route)
+                "{} response referenced undiscovered pin {}",
+                self.route_name(route),
+                String::from_utf8_lossy(token)
             )
         })
     }
@@ -1470,11 +1501,16 @@ mod tests {
         request_id(line[..3].parse().unwrap())
     }
 
-    fn incoming(source: &str, id: RequestId, body: WireResponse) -> OwnedResponse {
-        OwnedResponse {
-            route: source.into(),
+    fn incoming(
+        source: &'static str,
+        id: RequestId,
+        body: ProtocolResponse<&'static str, &'static str>,
+    ) -> Frame {
+        Frame::try_from(Message {
+            route: source,
             packet: Packet { id, body },
-        }
+        })
+        .unwrap()
     }
 
     #[test]
@@ -1508,14 +1544,14 @@ mod tests {
         let (id, _) = connection.prepare(sam, Request::Hello).unwrap();
         assert!(
             connection
-                .received(incoming("LPC", id, WireResponse::Hello))
+                .received_frame(&incoming("LPC", id, ProtocolResponse::Hello))
                 .unwrap_err()
                 .contains("expected SAM")
         );
         assert!(connection.pending[id.slot()].is_some());
         assert_eq!(
             connection
-                .received(incoming("SAM", id, WireResponse::Hello))
+                .received_frame(&incoming("SAM", id, ProtocolResponse::Hello))
                 .unwrap(),
             DeviceEvent::Hello { route: sam }
         );
@@ -1528,12 +1564,10 @@ mod tests {
         let (id, _) = connection.prepare(lpc, Request::Hello).unwrap();
         assert_eq!(
             connection
-                .received(incoming(
+                .received_frame(&incoming(
                     "SAM",
                     id,
-                    WireResponse::Error(ProtocolResponseError::RouteDown {
-                        next_hop: "LPC".into(),
-                    }),
+                    ProtocolResponse::Error(ProtocolResponseError::RouteDown { next_hop: "LPC" }),
                 ))
                 .unwrap(),
             DeviceEvent::DeviceError {
@@ -1559,29 +1593,27 @@ mod tests {
         );
 
         for body in [
-            WireResponse::MapBank {
-                bank: "GPIO0".into(),
-            },
-            WireResponse::MapBank {
-                bank: "GPIO1".into(),
-            },
-            WireResponse::MapPin {
-                target: "P0_7".into(),
+            ProtocolResponse::MapBank { bank: "GPIO0" },
+            ProtocolResponse::MapBank { bank: "GPIO1" },
+            ProtocolResponse::MapPin {
+                target: "P0_7",
                 package_pin: None,
-                bank: "GPIO0".into(),
+                bank: "GPIO0",
                 bit: 7,
                 capabilities: PinCapabilities::INPUT_PULLUP,
             },
-            WireResponse::MapPin {
-                target: "LED_A".into(),
+            ProtocolResponse::MapPin {
+                target: "LED_A",
                 package_pin: Some(48),
-                bank: "GPIO1".into(),
+                bank: "GPIO1",
                 bit: 3,
                 capabilities: PinCapabilities::GPIO,
             },
         ] {
             assert_eq!(
-                connection.received(incoming("SAM", id, body)).unwrap(),
+                connection
+                    .received_frame(&incoming("SAM", id, body))
+                    .unwrap(),
                 DeviceEvent::Untracked
             );
             assert!(connection.routes[sam.0].map.is_none());
@@ -1590,7 +1622,7 @@ mod tests {
 
         assert_eq!(
             connection
-                .received(incoming("SAM", id, WireResponse::Ack))
+                .received_frame(&incoming("SAM", id, ProtocolResponse::Ack))
                 .unwrap(),
             DeviceEvent::MapReady { route: sam }
         );
@@ -1611,10 +1643,10 @@ mod tests {
         assert_eq!(request_lifetime(Request::Version), RequestLifetime::OneShot);
         assert_eq!(
             connection
-                .received(incoming(
+                .received_frame(&incoming(
                     "SAM",
                     version_id,
-                    WireResponse::Version { version: 1 },
+                    ProtocolResponse::Version { version: 1 },
                 ))
                 .unwrap(),
             DeviceEvent::Version {
@@ -1633,7 +1665,11 @@ mod tests {
         for command in [Command::Hello, Command::Help] {
             assert_eq!(
                 connection
-                    .received(incoming("SAM", help_id, WireResponse::Help { command }))
+                    .received_frame(&incoming(
+                        "SAM",
+                        help_id,
+                        ProtocolResponse::Help { command }
+                    ))
                     .unwrap(),
                 DeviceEvent::Help {
                     route: sam,
@@ -1644,7 +1680,7 @@ mod tests {
         }
         assert_eq!(
             connection
-                .received(incoming("SAM", help_id, WireResponse::Ack))
+                .received_frame(&incoming("SAM", help_id, ProtocolResponse::Ack))
                 .unwrap(),
             DeviceEvent::Ack {
                 route: sam,
@@ -1659,17 +1695,16 @@ mod tests {
         let (mut connection, sam, _, _, _, _) = setup();
         connection.routes[sam.0].map = None;
         let (id, _) = connection.prepare(sam, Request::Map).unwrap();
+        assert_eq!(id, request_id(1));
         connection.routes[sam.0]
             .discovery
             .as_mut()
             .unwrap()
-            .bank("PIOA".into())
+            .bank(b"PIOA")
             .unwrap();
 
-        let event = connection.malformed_response(DecodeError {
-            id: Some(id),
-            kind: da_vinci_protocol::DecodeErrorKind::Malformed,
-        });
+        let malformed = Frame::try_from(b"001 SAM MAP PIN BROKEN <3\n".as_slice()).unwrap();
+        let event = connection.received_frame(&malformed);
         assert!(event.unwrap_err().contains("Malformed response"));
         assert!(connection.pending[id.slot()].is_none());
         assert!(connection.routes[sam.0].discovery.is_none());
@@ -1681,23 +1716,21 @@ mod tests {
         connection.routes[sam.0].map = None;
         let (id, _) = connection.prepare(sam, Request::Map).unwrap();
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapBank {
-                    bank: "PIOA".into(),
-                },
+                ProtocolResponse::MapBank { bank: "PIOA" },
             ))
             .unwrap();
 
         let error = connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapPin {
-                    target: "PA00".into(),
+                ProtocolResponse::MapPin {
+                    target: "PA00",
                     package_pin: Some(102),
-                    bank: "MISSING".into(),
+                    bank: "MISSING",
                     bit: 0,
                     capabilities: PinCapabilities::GPIO,
                 },
@@ -1752,22 +1785,20 @@ mod tests {
         let (id, _) = connection.prepare(sam, Request::Map).unwrap();
 
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapBank {
-                    bank: "GPIOX".into(),
-                },
+                ProtocolResponse::MapBank { bank: "GPIOX" },
             ))
             .unwrap();
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapPin {
-                    target: "X0".into(),
+                ProtocolResponse::MapPin {
+                    target: "X0",
                     package_pin: Some(7),
-                    bank: "GPIOX".into(),
+                    bank: "GPIOX",
                     bit: 0,
                     capabilities: PinCapabilities::INPUT,
                 },
@@ -1779,7 +1810,7 @@ mod tests {
 
         assert_eq!(
             connection
-                .received(incoming("SAM", id, WireResponse::Ack))
+                .received_frame(&incoming("SAM", id, ProtocolResponse::Ack))
                 .unwrap(),
             DeviceEvent::MapReady { route: sam }
         );
@@ -1792,23 +1823,21 @@ mod tests {
         let (mut connection, sam, _, pa00, _, _) = setup();
         let (id, _) = connection.prepare(sam, Request::Map).unwrap();
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapBank {
-                    bank: "GPIOX".into(),
-                },
+                ProtocolResponse::MapBank { bank: "GPIOX" },
             ))
             .unwrap();
 
         let error = connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::MapPin {
-                    target: "X0".into(),
+                ProtocolResponse::MapPin {
+                    target: "X0",
                     package_pin: None,
-                    bank: "MISSING".into(),
+                    bank: "MISSING",
                     bit: 0,
                     capabilities: PinCapabilities::INPUT,
                 },
@@ -1891,7 +1920,7 @@ mod tests {
         let DeviceEvent::Ack {
             sent: Some(pullup), ..
         } = connection
-            .received(incoming("SAM", direction_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", direction_id, ProtocolResponse::Ack))
             .unwrap()
         else {
             panic!("direction ACK should schedule pull-up configuration");
@@ -1902,7 +1931,7 @@ mod tests {
         let DeviceEvent::Ack {
             sent: Some(read), ..
         } = connection
-            .received(incoming("SAM", pullup_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", pullup_id, ProtocolResponse::Ack))
             .unwrap()
         else {
             panic!("pull-up ACK should schedule an input read");
@@ -1921,11 +1950,11 @@ mod tests {
 
         let read_id = line_id(&read);
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 read_id,
-                WireResponse::Value {
-                    target: "PA00".into(),
+                ProtocolResponse::Value {
+                    target: "PA00",
                     level: Level::High,
                 },
             ))
@@ -1964,18 +1993,18 @@ mod tests {
         );
 
         connection
-            .received(incoming("SAM", line_id(&sent[0]), WireResponse::Ack))
+            .received_frame(&incoming("SAM", line_id(&sent[0]), ProtocolResponse::Ack))
             .unwrap();
         let DeviceEvent::Ack {
             sent: Some(pullup), ..
         } = connection
-            .received(incoming("SAM", line_id(&sent[1]), WireResponse::Ack))
+            .received_frame(&incoming("SAM", line_id(&sent[1]), ProtocolResponse::Ack))
             .unwrap()
         else {
             panic!("direction ACK should clear pull-up state");
         };
         connection
-            .received(incoming("SAM", line_id(&pullup), WireResponse::Ack))
+            .received_frame(&incoming("SAM", line_id(&pullup), ProtocolResponse::Ack))
             .unwrap();
 
         assert_eq!(
@@ -2006,7 +2035,7 @@ mod tests {
         connection.io.stop_for_test();
 
         let error = connection
-            .received(incoming("SAM", direction_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", direction_id, ProtocolResponse::Ack))
             .unwrap_err();
 
         assert_eq!(error, "Serial worker stopped");
@@ -2022,12 +2051,10 @@ mod tests {
         let id = line_id(&sent[0]);
 
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 id,
-                WireResponse::Error(ProtocolResponseError::RouteDown {
-                    next_hop: "LPC".into(),
-                }),
+                ProtocolResponse::Error(ProtocolResponseError::RouteDown { next_hop: "LPC" }),
             ))
             .unwrap();
 
@@ -2049,7 +2076,7 @@ mod tests {
 
         assert_eq!(
             connection
-                .received(incoming("SAM", sam_reset, WireResponse::Bye))
+                .received_frame(&incoming("SAM", sam_reset, ProtocolResponse::Bye))
                 .unwrap(),
             DeviceEvent::Bye { route: sam }
         );
@@ -2077,7 +2104,7 @@ mod tests {
             }
         );
         connection
-            .received(incoming("SAM", listen_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", listen_id, ProtocolResponse::Ack))
             .unwrap();
         assert!(connection.pending[listen_id.slot()].is_none());
         assert_eq!(
@@ -2096,18 +2123,18 @@ mod tests {
             )
             .unwrap();
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 get_id,
-                WireResponse::Value {
-                    target: "PA00".into(),
+                ProtocolResponse::Value {
+                    target: "PA00",
                     level: Level::Low,
                 },
             ))
             .unwrap();
         assert!(connection.pending[get_id.slot()].is_some());
         connection
-            .received(incoming("SAM", get_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", get_id, ProtocolResponse::Ack))
             .unwrap();
         assert!(connection.pending[get_id.slot()].is_none());
     }
@@ -2121,13 +2148,13 @@ mod tests {
             .unwrap();
         let listener = line_id(&listener[0]);
         connection
-            .received(incoming("SAM", listener, WireResponse::Ack))
+            .received_frame(&incoming("SAM", listener, ProtocolResponse::Ack))
             .unwrap();
 
         for _ in 2..=RequestId::MAX {
             let (id, _) = connection.prepare(sam, Request::Hello).unwrap();
             connection
-                .received(incoming("SAM", id, WireResponse::Hello))
+                .received_frame(&incoming("SAM", id, ProtocolResponse::Hello))
                 .unwrap();
         }
         let (id, _) = connection.prepare(sam, Request::Hello).unwrap();
@@ -2151,10 +2178,10 @@ mod tests {
             .unwrap();
         let on_id = line_id(&sent[0]);
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 on_id,
-                WireResponse::Error(ProtocolResponseError::BadPacket),
+                ProtocolResponse::Error(ProtocolResponseError::BadPacket),
             ))
             .unwrap();
         assert_eq!(
@@ -2176,10 +2203,10 @@ mod tests {
             }
         );
         connection
-            .received(incoming(
+            .received_frame(&incoming(
                 "SAM",
                 off_id,
-                WireResponse::Error(ProtocolResponseError::BadPacket),
+                ProtocolResponse::Error(ProtocolResponseError::BadPacket),
             ))
             .unwrap();
         assert_eq!(
@@ -2227,7 +2254,7 @@ mod tests {
         assert!(connection.listener_is_active(pa01, second));
 
         connection
-            .received(incoming("SAM", off_id, WireResponse::Ack))
+            .received_frame(&incoming("SAM", off_id, ProtocolResponse::Ack))
             .unwrap();
         assert_eq!(
             connection.pin_state(pa00).unwrap().listener,

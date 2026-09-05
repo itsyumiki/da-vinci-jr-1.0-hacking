@@ -7,14 +7,11 @@ use std::{
 };
 
 use da_vinci_protocol::{
-    DecodeError, DecodeErrorKind, DecodedResponse, Frame, Level, LineBuffer, LineError,
-    MAX_PACKET_LEN, Message, Packet, RawMessage, RequestId, Response as ProtocolResponse,
+    DecodedResponse, Frame, Level, LineBuffer, LineError, MAX_PACKET_LEN, Message, Packet,
+    RawMessage, RequestId, Response as ProtocolResponse,
 };
 
 const EVENT_QUEUE_CAPACITY: usize = 1_024;
-
-pub(super) type WireResponse = ProtocolResponse<String, String>;
-pub(super) type OwnedResponse = Message<String, WireResponse>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ListenerKey {
@@ -122,10 +119,7 @@ enum IoCommand {
 pub(super) enum IoEvent {
     Connected(String),
     Disconnected(Option<String>),
-    Line {
-        line: Frame,
-        packet: Result<OwnedResponse, DecodeError>,
-    },
+    Line(Frame),
     ListenerValues(Vec<ListenerValue>),
     Error(String),
 }
@@ -265,60 +259,13 @@ fn route_line(wire_line: Frame, events: &SyncSender<IoEvent>, state: &mut IoStat
             if let Some(pin) = active_listener(&state.listeners, source, id, target) {
                 coalesce_listener_update(&mut state.listener_updates, pin, wire_line, id, level);
             } else {
-                let _ = events.send(IoEvent::Line {
-                    line: wire_line,
-                    packet: own_response(Message {
-                        route: source,
-                        packet: Packet {
-                            id,
-                            body: ProtocolResponse::Value { target, level },
-                        },
-                    }),
-                });
+                let _ = events.send(IoEvent::Line(wire_line));
             }
         }
-        Ok(message) => {
-            let _ = events.send(IoEvent::Line {
-                line: wire_line,
-                packet: own_response(message),
-            });
-        }
-        Err(error) => {
-            let _ = events.send(IoEvent::Line {
-                line: wire_line,
-                packet: Err(error),
-            });
+        Ok(_) | Err(_) => {
+            let _ = events.send(IoEvent::Line(wire_line));
         }
     }
-}
-
-fn own_response(
-    message: Message<&[u8], DecodedResponse<'_>>,
-) -> Result<OwnedResponse, DecodeError> {
-    let packet = message.packet;
-    let malformed = || DecodeError {
-        id: Some(packet.id),
-        kind: DecodeErrorKind::Malformed,
-    };
-    let body = packet.body.try_map(
-        |target| {
-            core::str::from_utf8(target)
-                .map(str::to_owned)
-                .map_err(|_| malformed())
-        },
-        |data| {
-            core::str::from_utf8(data)
-                .map(str::to_owned)
-                .map_err(|_| malformed())
-        },
-    )?;
-    Ok(OwnedResponse {
-        route: String::from_utf8_lossy(message.route).into_owned(),
-        packet: Packet {
-            id: packet.id,
-            body,
-        },
-    })
 }
 
 fn active_listener(
@@ -477,6 +424,38 @@ mod tests {
         assert_eq!(update.coalesced, 1);
         assert_eq!(update.level, Level::High);
         assert_eq!(update.key, key);
+    }
+
+    #[test]
+    fn route_line_coalesces_only_active_listener_values() {
+        let listener = request_id(8);
+        let key = ListenerKey { route: 0, pin: 0 };
+        let (events, received) = mpsc::sync_channel(4);
+        let mut state = IoState::new();
+        handle_io_command(
+            IoCommand::Listeners(vec![listener_route(listener)]),
+            &mut state,
+            &events,
+        );
+
+        let active = frame(b"008 SAM HYG PA00 HIGH <3\n");
+        route_line(active, &events, &mut state);
+        assert!(received.try_recv().is_err());
+        assert_eq!(state.listener_updates[0][0].unwrap().key, key);
+
+        let ordinary = frame(b"001 SAM HII <3\n");
+        route_line(ordinary, &events, &mut state);
+        let Ok(IoEvent::Line(forwarded)) = received.try_recv() else {
+            panic!("ordinary response should be forwarded as its original frame");
+        };
+        assert_eq!(forwarded, ordinary);
+
+        let malformed = frame(b"002 SAM HII :3\n");
+        route_line(malformed, &events, &mut state);
+        let Ok(IoEvent::Line(forwarded)) = received.try_recv() else {
+            panic!("malformed response should be forwarded unchanged");
+        };
+        assert_eq!(forwarded, malformed);
     }
 
     #[test]
