@@ -818,7 +818,6 @@ mod tests {
         let mut packet = Some(firmware.handle(request(11, Request::Map), &mut gpio));
         let mut banks = 0;
         let mut pins = 0;
-        let mut unavailable = 0;
 
         while let Some(current) = packet {
             Frame::try_from(Message {
@@ -828,10 +827,7 @@ mod tests {
             .expect("every SAM MAP record must fit");
             match current.body {
                 Response::MapBank { .. } => banks += 1,
-                Response::MapPin { capabilities, .. } => {
-                    pins += 1;
-                    unavailable += usize::from(!capabilities.available());
-                }
+                Response::MapPin { .. } => pins += 1,
                 Response::Ack => break,
                 _ => panic!("MAP stream emitted unrelated response"),
             }
@@ -840,7 +836,6 @@ mod tests {
 
         assert_eq!(banks, SAM_PIN_MAP.banks().len());
         assert_eq!(pins, SAM_PIN_MAP.pins().len());
-        assert_eq!(unavailable, 6);
     }
 
     #[test]

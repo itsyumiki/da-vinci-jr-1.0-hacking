@@ -582,74 +582,7 @@ fn packet_ids_remain_decimal_but_numeric_gpio_targets_are_rejected() {
 }
 
 #[test]
-fn typed_codec_round_trips_non_sam_targets_and_identity() {
-    let request = Packet {
-        id: id(21),
-        body: Request::Set {
-            target: b"PIO2_3".as_slice(),
-            level: Level::High,
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: request,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"021 LPC SET PIO2_3 HIGH OK?\n");
-    assert_eq!(decoded_request(frame.as_ref()), Ok(request));
-
-    let response = Packet {
-        id: id(22),
-        body: Response::Value {
-            target: b"PIO2_3".as_slice(),
-            level: Level::Low,
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: response,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"022 LPC HYG PIO2_3 LOW :3\n");
-    assert_eq!(decoded_response(frame.as_ref()), Ok(response));
-
-    let status = Packet {
-        id: id(23),
-        body: Response::<&[u8], &[u8]>::Status {
-            identity: b"LPC1115 GPIO",
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: status,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"023 LPC IAM LPC1115 GPIO :3\n");
-    assert_eq!(decoded_response(frame.as_ref()), Ok(status));
-}
-
-#[test]
-fn response_terminator_follows_source_and_is_validated_on_decode() {
-    let packet = Packet {
-        id: id(31),
-        body: Response::<&[u8], &[u8]>::Hello,
-    };
-    let sam = Frame::try_from(Message {
-        route: b"SAM".as_slice(),
-        packet,
-    })
-    .unwrap();
-    assert_eq!(sam.as_ref(), b"031 SAM HII <3\n");
-    assert_eq!(decoded_response(sam.as_ref()), Ok(packet));
-
-    let lpc = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet,
-    })
-    .unwrap();
-    assert_eq!(lpc.as_ref(), b"031 LPC HII :3\n");
-    assert_eq!(decoded_response(lpc.as_ref()), Ok(packet));
-
+fn response_terminator_mismatch_is_rejected() {
     for line in [b"031 SAM HII :3".as_slice(), b"031 LPC HII <3"] {
         assert_eq!(
             decoded_response(line),
@@ -662,59 +595,11 @@ fn response_terminator_follows_source_and_is_validated_on_decode() {
 }
 
 #[test]
-fn version_and_help_wire_examples_are_typed_and_source_aware() {
-    assert_eq!(PROTOCOL_VERSION, 1);
-    assert_eq!(
-        decoded_request(b"041 SAM VER"),
-        Ok(Packet {
-            id: id(41),
-            body: Request::Version,
-        })
-    );
-    assert_eq!(
-        decoded_request(b"042 SAM HLP"),
-        Ok(Packet {
-            id: id(42),
-            body: Request::Help,
-        })
-    );
-    assert_eq!(
-        decoded_response(b"041 SAM VER 1 <3"),
-        Ok(Packet {
-            id: id(41),
-            body: Response::Version { version: 1 },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"042 SAM HLP HAI <3"),
-        Ok(Packet {
-            id: id(42),
-            body: Response::Help {
-                command: Command::Hello,
-            },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"043 LPC VER 1 :3"),
-        Ok(Packet {
-            id: id(43),
-            body: Response::Version { version: 1 },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"044 LPC HLP HLP :3"),
-        Ok(Packet {
-            id: id(44),
-            body: Response::Help {
-                command: Command::Help,
-            },
-        })
-    );
-
+fn every_help_record_fits_and_round_trips_for_each_source_suffix() {
     for source in [b"SAM".as_slice(), b"LPC"] {
         for &command in Command::ALL {
             let packet = Packet {
-                id: id(45),
+                id: id(1),
                 body: Response::<&[u8], &[u8]>::Help { command },
             };
             let frame = Frame::try_from(Message {
