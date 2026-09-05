@@ -491,56 +491,29 @@ impl DeviceSession {
     }
 
     pub(super) fn change_mode(&mut self, pin: PinKey, mode: Mode) -> Result<Vec<String>, String> {
-        let route = pin.route;
         let Some(route_pin) = self.route_pin(pin) else {
             return Err("Unknown pin key".into());
         };
-        if !route_pin.info.capabilities.available() {
+        if !mode.supported_by(route_pin.info.capabilities)
+            || route_pin.state.target_mode.is_some()
+            || route_pin.state.listener.is_pending()
+        {
             return Ok(Vec::new());
         }
-        let state = route_pin.state;
-        if state.target_mode.is_some() || state.listener.is_pending() {
-            return Ok(Vec::new());
-        }
-
-        let mut sent = Vec::with_capacity(2);
-        if mode == Mode::Output && state.listener == ListenerState::On {
-            self.route_pin_mut(pin).unwrap().state.listener = ListenerState::Disabling;
-            let request = Request::Listen {
-                target: Target::Pin(pin),
-                state: Toggle::Off,
-            };
-            sent.push(self.send(route, request)?);
-        }
-
-        let state = &mut self.route_pin_mut(pin).unwrap().state;
-        state.target_mode = Some(mode);
-        state.level = None;
-        let request = Request::Direction {
-            target: Target::Pin(pin),
-            direction: mode.direction(),
-        };
-        sent.push(self.send(route, request)?);
-        Ok(sent)
+        self.apply_mode(pin.route, Target::Pin(pin), mode, true)
     }
 
     pub(super) fn read_pin(&mut self, pin: PinKey) -> Result<Vec<String>, String> {
-        let route = pin.route;
         let Some(state) = self.pin_state(pin) else {
             return Err("Unknown pin key".into());
         };
         if state.mode.is_none() || state.value_pending {
             return Ok(Vec::new());
         }
-        self.route_pin_mut(pin).unwrap().state.value_pending = true;
-        let request = Request::Get {
-            target: Target::Pin(pin),
-        };
-        self.send(route, request).map(|line| vec![line])
+        self.read_scope(pin.route, Target::Pin(pin))
     }
 
     pub(super) fn write_pin(&mut self, pin: PinKey) -> Result<Vec<String>, String> {
-        let route = pin.route;
         let Some(state) = self.pin_state(pin) else {
             return Err("Unknown pin key".into());
         };
@@ -552,33 +525,22 @@ impl DeviceSession {
         } else {
             Level::High
         };
-        self.route_pin_mut(pin).unwrap().state.value_pending = true;
-        let request = Request::Set {
-            target: Target::Pin(pin),
-            level,
-        };
-        self.send(route, request).map(|line| vec![line])
+        self.set_scope_level(pin.route, Target::Pin(pin), level)
     }
 
     pub(super) fn toggle_listener(&mut self, pin: PinKey) -> Result<Vec<String>, String> {
-        let route = pin.route;
         let Some(state) = self.pin_state(pin) else {
             return Err("Unknown pin key".into());
         };
         if !state.mode.is_some_and(Mode::is_input) {
             return Ok(Vec::new());
         }
-        let (enabled, pending) = match state.listener {
-            ListenerState::Off => (true, ListenerState::Enabling),
-            ListenerState::On => (false, ListenerState::Disabling),
+        let enabled = match state.listener {
+            ListenerState::Off => true,
+            ListenerState::On => false,
             ListenerState::Enabling | ListenerState::Disabling => return Ok(Vec::new()),
         };
-        self.route_pin_mut(pin).unwrap().state.listener = pending;
-        let request = Request::Listen {
-            target: Target::Pin(pin),
-            state: enabled.into(),
-        };
-        self.send(route, request).map(|line| vec![line])
+        self.set_listener_scope(pin.route, Target::Pin(pin), enabled)
     }
 
     pub(super) fn apply_mode(
