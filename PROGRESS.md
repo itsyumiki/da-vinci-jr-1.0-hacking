@@ -64,3 +64,13 @@ Its getting tiring to trace everything manually on the main board since its too 
 ### Update 02.09.2026 13:00 GMT+3:
 
 I checked the klipper source, firmata source and RRF source and decided to take the klipper gpio and uart code, take their linker and compiling scripts, gut klipper specific stuff from them and implement firmata on it. It will take a while probably since im not too familiar with raw C toolchain and their flags.
+
+### Update 05.09.2026 14:50 GMT+3:
+
+For the last 2 days, I offloaded the firmware writing part to LLMs, and so far its going well. Firstly I wrote a python GUI for the host side, then used Claude to improve it a bit, then ChatGPT decided to optimize it (it was taking 3+ minutes to start and render all the pins, now its <2 seconds.).
+
+Then GPT took my protocol description and wrote a C firmware for the printer side. I want to thank @henmalib for most of this here. Then again, thanks to @henmalib, GPT rewrote the firmware and the GUI in rust, and its a lot cleaner and faster. We also improved the GUI and the protocol a lot, fixed dropped packets and more. Currently GPT is working on a uart passthrough for lpc to sam chip so i can control both of them over 1 uart line with no soldering extra wires.
+
+Currently I mapped almost all the pins for the sam4e8e (missing the flash chip and the buzzer, maybe some leds), waiting for the lpc to sam chip uart passthrough so I can map the rest. I mapped enough pins for an interactive control system (endstops, buttons, motors etc all mapped), mainly missing the hotend and LCD for the rest.
+
+Later on, I will also add a ESP12 chip to the board so I can use the RRF webui.
