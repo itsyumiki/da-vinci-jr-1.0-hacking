@@ -391,6 +391,16 @@ fn response_wire_examples_use_symbolic_pins() {
             },
             "008 SAM MAP PIN PIO2_3 - PIO2 3 1 <3\n",
         ),
+        (
+            Response::MapPin {
+                target: b"PIO0_4".as_slice(),
+                package_pin: Some(15),
+                bank: b"PIO0".as_slice(),
+                bit: 4,
+                capabilities: PinCapabilities::INPUT_OUTPUT,
+            },
+            "008 SAM MAP PIN PIO0_4 15 PIO0 4 3 <3\n",
+        ),
         (Response::Ack, "008 SAM OKA <3\n"),
         (
             Response::Value {

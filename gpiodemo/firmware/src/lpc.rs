@@ -106,47 +106,47 @@ macro_rules! lpc_pins {
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
 lpc_pins! {
     "PIO0_0" => { package: 3, bank: Pio0, bit: 0, iocon: 0x0c, function: 0, kind: Standard, caps: NONE },
-    "PIO0_1" => { package: 4, bank: Pio0, bit: 1, iocon: 0x10, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_2" => { package: 10, bank: Pio0, bit: 2, iocon: 0x1c, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_3" => { package: 14, bank: Pio0, bit: 3, iocon: 0x2c, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_4" => { package: 15, bank: Pio0, bit: 4, iocon: 0x30, function: 0, kind: I2cOpenDrain, caps: INPUT },
-    "PIO0_5" => { package: 16, bank: Pio0, bit: 5, iocon: 0x34, function: 0, kind: I2cOpenDrain, caps: INPUT },
-    "PIO0_6" => { package: 22, bank: Pio0, bit: 6, iocon: 0x4c, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_7" => { package: 23, bank: Pio0, bit: 7, iocon: 0x50, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_8" => { package: 27, bank: Pio0, bit: 8, iocon: 0x60, function: 0, kind: Standard, caps: INPUT },
-    "PIO0_9" => { package: 28, bank: Pio0, bit: 9, iocon: 0x64, function: 0, kind: Standard, caps: INPUT },
+    "PIO0_1" => { package: 4, bank: Pio0, bit: 1, iocon: 0x10, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_2" => { package: 10, bank: Pio0, bit: 2, iocon: 0x1c, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_3" => { package: 14, bank: Pio0, bit: 3, iocon: 0x2c, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_4" => { package: 15, bank: Pio0, bit: 4, iocon: 0x30, function: 0, kind: I2cOpenDrain, caps: INPUT_OUTPUT },
+    "PIO0_5" => { package: 16, bank: Pio0, bit: 5, iocon: 0x34, function: 0, kind: I2cOpenDrain, caps: INPUT_OUTPUT },
+    "PIO0_6" => { package: 22, bank: Pio0, bit: 6, iocon: 0x4c, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_7" => { package: 23, bank: Pio0, bit: 7, iocon: 0x50, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_8" => { package: 27, bank: Pio0, bit: 8, iocon: 0x60, function: 0, kind: Standard, caps: GPIO },
+    "PIO0_9" => { package: 28, bank: Pio0, bit: 9, iocon: 0x64, function: 0, kind: Standard, caps: GPIO },
     "PIO0_10" => { package: 29, bank: Pio0, bit: 10, iocon: 0x68, function: 0, kind: Standard, caps: NONE },
-    "PIO0_11" => { package: 32, bank: Pio0, bit: 11, iocon: 0x74, function: 1, kind: Analog, caps: INPUT },
-    "PIO1_0" => { package: 33, bank: Pio1, bit: 0, iocon: 0x78, function: 1, kind: Analog, caps: INPUT },
-    "PIO1_1" => { package: 34, bank: Pio1, bit: 1, iocon: 0x7c, function: 1, kind: Analog, caps: INPUT },
-    "PIO1_2" => { package: 35, bank: Pio1, bit: 2, iocon: 0x80, function: 1, kind: Analog, caps: INPUT },
+    "PIO0_11" => { package: 32, bank: Pio0, bit: 11, iocon: 0x74, function: 1, kind: Analog, caps: GPIO },
+    "PIO1_0" => { package: 33, bank: Pio1, bit: 0, iocon: 0x78, function: 1, kind: Analog, caps: GPIO },
+    "PIO1_1" => { package: 34, bank: Pio1, bit: 1, iocon: 0x7c, function: 1, kind: Analog, caps: GPIO },
+    "PIO1_2" => { package: 35, bank: Pio1, bit: 2, iocon: 0x80, function: 1, kind: Analog, caps: GPIO },
     "PIO1_3" => { package: 39, bank: Pio1, bit: 3, iocon: 0x90, function: 0, kind: Analog, caps: NONE },
-    "PIO1_4" => { package: 40, bank: Pio1, bit: 4, iocon: 0x94, function: 0, kind: Analog, caps: INPUT },
-    "PIO1_5" => { package: 45, bank: Pio1, bit: 5, iocon: 0xa0, function: 0, kind: Standard, caps: INPUT },
+    "PIO1_4" => { package: 40, bank: Pio1, bit: 4, iocon: 0x94, function: 0, kind: Analog, caps: GPIO },
+    "PIO1_5" => { package: 45, bank: Pio1, bit: 5, iocon: 0xa0, function: 0, kind: Standard, caps: GPIO },
     "PIO1_6" => { package: 46, bank: Pio1, bit: 6, iocon: 0xa4, function: 0, kind: Standard, caps: NONE },
     "PIO1_7" => { package: 47, bank: Pio1, bit: 7, iocon: 0xa8, function: 0, kind: Standard, caps: NONE },
-    "PIO1_8" => { package: 9, bank: Pio1, bit: 8, iocon: 0x14, function: 0, kind: Standard, caps: INPUT },
-    "PIO1_9" => { package: 17, bank: Pio1, bit: 9, iocon: 0x38, function: 0, kind: Standard, caps: INPUT },
-    "PIO1_10" => { package: 30, bank: Pio1, bit: 10, iocon: 0x6c, function: 0, kind: Analog, caps: INPUT },
-    "PIO1_11" => { package: 42, bank: Pio1, bit: 11, iocon: 0x98, function: 0, kind: Analog, caps: INPUT },
-    "PIO2_0" => { package: 2, bank: Pio2, bit: 0, iocon: 0x08, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_1" => { package: 13, bank: Pio2, bit: 1, iocon: 0x28, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_2" => { package: 26, bank: Pio2, bit: 2, iocon: 0x5c, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_3" => { package: 38, bank: Pio2, bit: 3, iocon: 0x8c, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_4" => { package: 19, bank: Pio2, bit: 4, iocon: 0x40, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_5" => { package: 20, bank: Pio2, bit: 5, iocon: 0x44, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_6" => { package: 1, bank: Pio2, bit: 6, iocon: 0x00, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_7" => { package: 11, bank: Pio2, bit: 7, iocon: 0x20, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_8" => { package: 12, bank: Pio2, bit: 8, iocon: 0x24, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_9" => { package: 24, bank: Pio2, bit: 9, iocon: 0x54, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_10" => { package: 25, bank: Pio2, bit: 10, iocon: 0x58, function: 0, kind: Standard, caps: INPUT },
-    "PIO2_11" => { package: 31, bank: Pio2, bit: 11, iocon: 0x70, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_0" => { package: 36, bank: Pio3, bit: 0, iocon: 0x84, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_1" => { package: 37, bank: Pio3, bit: 1, iocon: 0x88, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_2" => { package: 43, bank: Pio3, bit: 2, iocon: 0x9c, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_3" => { package: 48, bank: Pio3, bit: 3, iocon: 0xac, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_4" => { package: 18, bank: Pio3, bit: 4, iocon: 0x3c, function: 0, kind: Standard, caps: INPUT },
-    "PIO3_5" => { package: 21, bank: Pio3, bit: 5, iocon: 0x48, function: 0, kind: Standard, caps: INPUT },
+    "PIO1_8" => { package: 9, bank: Pio1, bit: 8, iocon: 0x14, function: 0, kind: Standard, caps: GPIO },
+    "PIO1_9" => { package: 17, bank: Pio1, bit: 9, iocon: 0x38, function: 0, kind: Standard, caps: GPIO },
+    "PIO1_10" => { package: 30, bank: Pio1, bit: 10, iocon: 0x6c, function: 0, kind: Analog, caps: GPIO },
+    "PIO1_11" => { package: 42, bank: Pio1, bit: 11, iocon: 0x98, function: 0, kind: Analog, caps: GPIO },
+    "PIO2_0" => { package: 2, bank: Pio2, bit: 0, iocon: 0x08, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_1" => { package: 13, bank: Pio2, bit: 1, iocon: 0x28, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_2" => { package: 26, bank: Pio2, bit: 2, iocon: 0x5c, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_3" => { package: 38, bank: Pio2, bit: 3, iocon: 0x8c, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_4" => { package: 19, bank: Pio2, bit: 4, iocon: 0x40, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_5" => { package: 20, bank: Pio2, bit: 5, iocon: 0x44, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_6" => { package: 1, bank: Pio2, bit: 6, iocon: 0x00, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_7" => { package: 11, bank: Pio2, bit: 7, iocon: 0x20, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_8" => { package: 12, bank: Pio2, bit: 8, iocon: 0x24, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_9" => { package: 24, bank: Pio2, bit: 9, iocon: 0x54, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_10" => { package: 25, bank: Pio2, bit: 10, iocon: 0x58, function: 0, kind: Standard, caps: GPIO },
+    "PIO2_11" => { package: 31, bank: Pio2, bit: 11, iocon: 0x70, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_0" => { package: 36, bank: Pio3, bit: 0, iocon: 0x84, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_1" => { package: 37, bank: Pio3, bit: 1, iocon: 0x88, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_2" => { package: 43, bank: Pio3, bit: 2, iocon: 0x9c, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_3" => { package: 48, bank: Pio3, bit: 3, iocon: 0xac, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_4" => { package: 18, bank: Pio3, bit: 4, iocon: 0x3c, function: 0, kind: Standard, caps: GPIO },
+    "PIO3_5" => { package: 21, bank: Pio3, bit: 5, iocon: 0x48, function: 0, kind: Standard, caps: GPIO },
 }
 
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
@@ -311,7 +311,7 @@ mod tests {
     use crate::gpio::Target;
 
     #[test]
-    fn map_covers_the_48_pin_package_conservatively() {
+    fn map_matches_lpc1115_gpio_capabilities() {
         assert_eq!(LPC_PIN_MAP.banks().len(), 4);
         assert_eq!(LPC_PIN_MAP.pins().len(), 42);
         assert_eq!(LPC_HW.len(), LPC_PIN_MAP.pins().len());
@@ -343,17 +343,25 @@ mod tests {
             let Target::Pin(pin) = LPC_PIN_MAP.resolve(token).unwrap() else {
                 panic!("reserved LPC target must resolve to a pin");
             };
-            assert!(!LPC_PIN_MAP.pin(pin).capabilities.available());
+            assert_eq!(LPC_PIN_MAP.pin(pin).capabilities, Capabilities::NONE);
+        }
+
+        for token in [b"PIO0_4".as_slice(), b"PIO0_5"] {
+            let Target::Pin(pin) = LPC_PIN_MAP.resolve(token).unwrap() else {
+                panic!("I2C LPC target must resolve to a pin");
+            };
+            let capabilities = LPC_PIN_MAP.pin(pin).capabilities;
+            assert!(capabilities.input());
+            assert!(capabilities.output());
+            assert!(!capabilities.pull_up());
         }
 
         for pin in LPC_PIN_MAP
             .pins()
             .iter()
-            .filter(|pin| pin.capabilities.available())
+            .filter(|pin| pin.capabilities.available() && !matches!(pin.token, "PIO0_4" | "PIO0_5"))
         {
-            assert!(pin.capabilities.input());
-            assert!(!pin.capabilities.output());
-            assert!(!pin.capabilities.pull_up());
+            assert_eq!(pin.capabilities, Capabilities::GPIO);
         }
     }
 }

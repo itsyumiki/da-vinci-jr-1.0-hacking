@@ -108,6 +108,7 @@ impl PinCapabilities {
     pub const NONE: Self = Self(0);
     pub const INPUT: Self = Self(Self::INPUT_BIT);
     pub const OUTPUT: Self = Self(Self::OUTPUT_BIT);
+    pub const INPUT_OUTPUT: Self = Self(Self::INPUT_BIT | Self::OUTPUT_BIT);
     pub const INPUT_PULLUP: Self = Self(Self::INPUT_BIT | Self::PULL_UP_BIT);
     pub const GPIO: Self = Self(Self::INPUT_BIT | Self::OUTPUT_BIT | Self::PULL_UP_BIT);
 

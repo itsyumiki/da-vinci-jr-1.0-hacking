@@ -126,7 +126,7 @@ Pin records have this form:
 
 The pin fields are the native target token, physical package-pin number, bank token, bit/order within the bank, and capability bits. A `-` package-pin field means that the physical package pin is unknown.
 
-Capability bits are additive: `1` means input, `2` means output, and `4` means pull-up control. For example, `7` supports all three operations, `1` is input-only, and `0` marks a pin unavailable for GPIO commands. MAP includes unavailable pins so a host can display the complete node topology while respecting those capability flags.
+Capability bits are additive: `1` means input, `2` means output, and `4` means pull-up control. For example, `7` supports all three operations, `3` supports input and output without pull-up control, `1` is input-only, and `0` marks a pin unavailable for GPIO commands. These bits describe operations implemented by the addressed node, not whether an attached board net is electrically safe to drive. MAP includes unavailable pins so a host can display the complete node topology while respecting those capability flags.
 
 The metadata in a `MAP` response is the same topology that the node uses when it resolves later GPIO target tokens. A host must discard a partial map if the stream fails before the terminal `OKA`.
 

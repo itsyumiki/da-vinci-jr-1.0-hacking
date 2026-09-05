@@ -1418,6 +1418,10 @@ mod tests {
             [Mode::Input, Mode::InputPullup]
         );
         assert_eq!(Mode::available_for(PinCapabilities::OUTPUT), [Mode::Output]);
+        assert_eq!(
+            Mode::available_for(PinCapabilities::INPUT_OUTPUT),
+            [Mode::Input, Mode::Output]
+        );
         assert_eq!(Mode::available_for(PinCapabilities::GPIO), Mode::ALL);
     }
 
