@@ -233,7 +233,6 @@ impl PinState {
 struct Pending {
     route: RouteKey,
     request: Request,
-    lifetime: RequestLifetime,
 }
 
 #[derive(Clone, Debug)]
@@ -861,11 +860,7 @@ impl DeviceSession {
         if matches!(request, Request::Map) {
             self.routes[route.0].discovery = Some(MapBuilder::new(route));
         }
-        self.pending[id.slot()] = Some(Pending {
-            route,
-            request,
-            lifetime: request_lifetime(request),
-        });
+        self.pending[id.slot()] = Some(Pending { route, request });
         Ok((id, frame))
     }
 
@@ -976,7 +971,7 @@ impl DeviceSession {
                         return Err(error);
                     }
                 };
-                if pending.lifetime == RequestLifetime::PersistentListener
+                if request_lifetime(pending.request) == RequestLifetime::PersistentListener
                     && !self.listener_is_active(pin, id)
                 {
                     return Ok(DeviceEvent::Untracked);
@@ -1036,7 +1031,7 @@ impl DeviceSession {
     }
 
     fn require_map(&mut self, pending: Pending, id: RequestId) -> Result<&mut MapBuilder, String> {
-        if pending.request != Request::Map || pending.lifetime != RequestLifetime::StreamUntilAck {
+        if pending.request != Request::Map {
             self.retire(id);
             return Err(format!("Unexpected MAP response for request {id}"));
         }
@@ -1142,8 +1137,9 @@ impl DeviceSession {
             _ => {}
         }
 
-        let listener_active =
-            pending.lifetime == RequestLifetime::PersistentListener && self.listener_id_active(id);
+        let listener_active = request_lifetime(pending.request)
+            == RequestLifetime::PersistentListener
+            && self.listener_id_active(id);
         self.complete(id, true, listener_active);
         let sent = follow_up
             .map(|request| self.send(pending.route, request))
@@ -1191,7 +1187,7 @@ impl DeviceSession {
         let Some(pending) = self.pending[id.slot()] else {
             return;
         };
-        let done = match pending.lifetime {
+        let done = match request_lifetime(pending.request) {
             RequestLifetime::OneShot => true,
             RequestLifetime::StreamUntilAck => terminal_ack,
             RequestLifetime::PersistentListener => terminal_ack && !listener_active,
