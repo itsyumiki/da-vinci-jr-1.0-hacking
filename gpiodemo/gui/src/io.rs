@@ -61,8 +61,8 @@ impl SerialIo {
         self.send(IoCommand::Disconnect)
     }
 
-    pub(super) fn write(&self, bytes: Vec<u8>) -> Result<(), String> {
-        self.send(IoCommand::Write(bytes))
+    pub(super) fn write(&self, frame: Frame) -> Result<(), String> {
+        self.send(IoCommand::Write(frame))
     }
 
     pub(super) fn set_listeners(&self, routes: Vec<ListenerRoute>) {
@@ -114,7 +114,7 @@ pub(super) struct ListenerRoute {
 enum IoCommand {
     Connect(String),
     Disconnect,
-    Write(Vec<u8>),
+    Write(Frame),
     Listeners(Vec<ListenerRoute>),
     DrainListeners,
 }
@@ -133,7 +133,7 @@ pub(super) enum IoEvent {
 struct IoState {
     port: Option<Box<dyn serialport::SerialPort>>,
     reader: LineBuffer,
-    writes: VecDeque<Vec<u8>>,
+    writes: VecDeque<Frame>,
     write_offset: usize,
     listeners: Vec<ListenerRoute>,
     listener_updates: Vec<Vec<Option<ListenerValue>>>,
@@ -193,7 +193,8 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             continue;
         }
 
-        if let Some(bytes) = state.writes.front() {
+        if let Some(frame) = state.writes.front() {
+            let bytes = frame.as_ref();
             let result = state
                 .port
                 .as_mut()
@@ -385,9 +386,9 @@ fn handle_io_command(command: IoCommand, state: &mut IoState, events: &SyncSende
             state.become_disconnected();
             let _ = events.send(IoEvent::Disconnected(None));
         }
-        IoCommand::Write(bytes) => {
+        IoCommand::Write(frame) => {
             if state.port.is_some() {
-                state.writes.push_back(bytes);
+                state.writes.push_back(frame);
             }
         }
         IoCommand::Listeners(routes) => {
@@ -557,7 +558,7 @@ mod tests {
         let (events, received) = mpsc::sync_channel(1);
         let mut state = IoState::new();
         handle_io_command(
-            IoCommand::Write(b"001 SAM HAI\n".to_vec()),
+            IoCommand::Write(frame(b"001 SAM HAI\n")),
             &mut state,
             &events,
         );

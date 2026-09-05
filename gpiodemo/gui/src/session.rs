@@ -1,9 +1,9 @@
 use std::{array, fmt};
 
 use da_vinci_protocol::{
-    Command, DecodeError, Direction, Frame, Level, Message, Packet, PinCapabilities, Query,
-    QueryValue, Request as ProtocolRequest, RequestId, ResponseError as ProtocolResponseError,
-    Toggle,
+    Command, DecodeError, Direction, Frame, Level, MAX_PACKET_LEN, Message, Packet,
+    PinCapabilities, Query, QueryValue, Request as ProtocolRequest, RequestId,
+    ResponseError as ProtocolResponseError, Toggle,
 };
 
 use crate::io::{
@@ -774,7 +774,7 @@ impl DeviceSession {
         let line = String::from_utf8_lossy(frame.as_ref())
             .trim_end_matches(['\r', '\n'])
             .to_owned();
-        if let Err(error) = self.io.write(frame.as_ref().to_vec()) {
+        if let Err(error) = self.io.write(frame) {
             self.cancel(id);
             return Err(error);
         }
@@ -784,7 +784,9 @@ impl DeviceSession {
     pub(super) fn send_raw(&self, line: &str) -> Result<(), String> {
         let mut bytes = line.as_bytes().to_vec();
         bytes.push(b'\n');
-        self.io.write(bytes)
+        let frame = Frame::try_from(bytes.as_slice())
+            .map_err(|_| format!("Raw command exceeds {MAX_PACKET_LEN} bytes including newline"))?;
+        self.io.write(frame)
     }
 
     pub(super) fn poll_listener_updates(&self) {
@@ -1405,6 +1407,22 @@ mod tests {
         );
         assert_eq!(Mode::available_for(PinCapabilities::OUTPUT), [Mode::Output]);
         assert_eq!(Mode::available_for(PinCapabilities::GPIO), Mode::ALL);
+    }
+
+    #[test]
+    fn raw_commands_are_bounded_without_protocol_validation() {
+        let connection = DeviceSession::spawn(&["SAM"]);
+        assert!(
+            connection
+                .send_raw("definitely not protocol grammar")
+                .is_ok()
+        );
+
+        let oversized = "x".repeat(MAX_PACKET_LEN);
+        assert_eq!(
+            connection.send_raw(&oversized).unwrap_err(),
+            format!("Raw command exceeds {MAX_PACKET_LEN} bytes including newline")
+        );
     }
 
     fn setup() -> (DeviceSession, RouteKey, RouteKey, PinKey, PinKey, BankKey) {
