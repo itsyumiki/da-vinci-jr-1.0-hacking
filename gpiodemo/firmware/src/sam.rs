@@ -238,14 +238,14 @@ impl GpioHal for SamGpio {
     fn configure(&mut self, pin: PinId, mode: PinMode) {
         with_pin!(pin, |port, mask| {
             match mode {
-                PinMode::Input { pull_up } => {
-                    if pull_up {
-                        port.ppddr.write_with_zero(|w| w.bits(mask));
-                        port.puer.write_with_zero(|w| w.bits(mask));
-                    } else {
-                        port.pudr.write_with_zero(|w| w.bits(mask));
-                        port.ppddr.write_with_zero(|w| w.bits(mask));
-                    }
+                PinMode::Input => {
+                    port.pudr.write_with_zero(|w| w.bits(mask));
+                    port.ppddr.write_with_zero(|w| w.bits(mask));
+                    port.odr.write_with_zero(|w| w.bits(mask));
+                }
+                PinMode::InputPullup => {
+                    port.ppddr.write_with_zero(|w| w.bits(mask));
+                    port.puer.write_with_zero(|w| w.bits(mask));
                     port.odr.write_with_zero(|w| w.bits(mask));
                 }
                 PinMode::Output { initial } => {

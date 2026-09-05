@@ -193,7 +193,7 @@ impl LpcGpio {
         }
     }
 
-    fn configure_pad(&self, pin: PinId, pull_up: bool) {
+    fn configure_pad(&self, pin: PinId, mode: PinMode) {
         let hw = pin_hw(pin);
         let offset = hw.iocon_offset as usize;
         // SAFETY: LpcGpio owns IOCON for its lifetime. Each PinId comes from LPC_PIN_MAP and has
@@ -205,10 +205,13 @@ impl LpcGpio {
             let next = match hw.pad_kind {
                 LpcPadKind::I2cOpenDrain => (current & !(0x07 | (0x03 << 8))) | (1 << 8),
                 LpcPadKind::Standard | LpcPadKind::Analog => {
-                    let mode = if pull_up { 2 } else { 0 };
+                    let pull_mode = match mode {
+                        PinMode::InputPullup => 2,
+                        PinMode::Input | PinMode::Output { .. } => 0,
+                    };
                     let mut bits = (current & !(0x07 | (0x03 << 3)))
                         | u32::from(hw.gpio_function)
-                        | ((mode as u32) << 3);
+                        | (pull_mode << 3);
                     if hw.pad_kind == LpcPadKind::Analog {
                         bits |= 1 << 7;
                     }
@@ -230,8 +233,8 @@ impl GpioHal for LpcGpio {
         let hw = pin_hw(pin);
         let mask = 1u32 << hw.bit;
         match mode {
-            PinMode::Input { pull_up } => {
-                self.configure_pad(pin, pull_up);
+            PinMode::Input | PinMode::InputPullup => {
+                self.configure_pad(pin, mode);
                 // DIR is a whole-bank bitmap in this PAC, so changing one pin requires a masked
                 // raw update while preserving neighbouring direction bits.
                 self.registers(hw.bank)
@@ -239,7 +242,7 @@ impl GpioHal for LpcGpio {
                     .modify(|r, w| unsafe { w.bits(r.bits() & !mask) });
             }
             PinMode::Output { initial } => {
-                self.configure_pad(pin, false);
+                self.configure_pad(pin, mode);
                 self.write(pin, initial);
                 self.registers(hw.bank)
                     .dir

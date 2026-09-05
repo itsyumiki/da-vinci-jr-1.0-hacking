@@ -13,12 +13,12 @@ type FirmwareResponse = Response<&'static [u8], &'static [u8]>;
 #[derive(Clone, Copy)]
 enum PinState {
     Unset,
-    Configured {
-        direction: Direction,
+    Input {
         pull_up: bool,
         listener: Option<RequestId>,
         previous: Level,
     },
+    Output,
 }
 
 #[derive(Clone, Copy)]
@@ -251,7 +251,7 @@ impl Firmware {
         for offset in 0..pin_count {
             let index = (self.listener_cursor + offset) % pin_count;
             let pin = map.pin_id(index);
-            let PinState::Configured {
+            let PinState::Input {
                 listener: Some(listener),
                 previous,
                 ..
@@ -266,7 +266,7 @@ impl Firmware {
             if value == previous {
                 continue;
             }
-            if let PinState::Configured { previous, .. } = self.state_mut(pin) {
+            if let PinState::Input { previous, .. } = self.state_mut(pin) {
                 *previous = value;
             }
             self.listener_cursor = (index + 1) % pin_count;
@@ -309,23 +309,29 @@ impl Firmware {
         direction: Direction,
         gpio: &mut G,
     ) {
-        let listener = match self.state(pin) {
-            PinState::Configured { listener, .. } => listener,
-            PinState::Unset => None,
-        };
-        let mode = match direction {
-            Direction::Input => PinMode::Input { pull_up: false },
-            Direction::Output => PinMode::Output {
-                initial: Level::Low,
-            },
-        };
-        gpio.configure(pin, mode);
-        self.pins[pin.index()] = PinState::Configured {
-            direction,
-            pull_up: false,
-            listener,
-            previous: read_pin(map, gpio, pin),
-        };
+        match direction {
+            Direction::Input => {
+                let listener = match self.state(pin) {
+                    PinState::Input { listener, .. } => listener,
+                    PinState::Unset | PinState::Output => None,
+                };
+                gpio.configure(pin, PinMode::Input);
+                self.pins[pin.index()] = PinState::Input {
+                    pull_up: false,
+                    listener,
+                    previous: read_pin(map, gpio, pin),
+                };
+            }
+            Direction::Output => {
+                gpio.configure(
+                    pin,
+                    PinMode::Output {
+                        initial: Level::Low,
+                    },
+                );
+                self.pins[pin.index()] = PinState::Output;
+            }
+        }
     }
 
     fn set_level<G: GpioHal>(
@@ -345,15 +351,7 @@ impl Firmware {
             .pins_for(target)
             .filter(|pin| map.pin(*pin).capabilities.output())
         {
-            if direct
-                || matches!(
-                    self.state(pin),
-                    PinState::Configured {
-                        direction: Direction::Output,
-                        ..
-                    }
-                )
-            {
+            if direct || matches!(self.state(pin), PinState::Output) {
                 gpio.write(pin, level);
             }
         }
@@ -374,14 +372,8 @@ impl Firmware {
         }
         for pin in map.pins_for(target) {
             let info = map.pin(pin);
-            let needs_pull_up = matches!(
-                self.state(pin),
-                PinState::Configured {
-                    direction: Direction::Input,
-                    ..
-                }
-            );
-            if !info.capabilities.available() || (needs_pull_up && !info.capabilities.pull_up()) {
+            let is_input = matches!(self.state(pin), PinState::Input { .. });
+            if !info.capabilities.available() || (is_input && !info.capabilities.pull_up()) {
                 continue;
             }
             self.set_pull_up_pin(map, pin, enabled, gpio);
@@ -396,20 +388,21 @@ impl Firmware {
         enabled: bool,
         gpio: &mut G,
     ) {
-        let PinState::Configured {
-            direction,
-            pull_up,
-            previous,
-            ..
+        let PinState::Input {
+            pull_up, previous, ..
         } = self.state_mut(pin)
         else {
             return;
         };
-        if *direction != Direction::Input {
-            return;
-        }
         *pull_up = enabled;
-        gpio.configure(pin, PinMode::Input { pull_up: enabled });
+        gpio.configure(
+            pin,
+            if enabled {
+                PinMode::InputPullup
+            } else {
+                PinMode::Input
+            },
+        );
         *previous = read_pin(map, gpio, pin);
     }
 
@@ -426,22 +419,11 @@ impl Firmware {
         {
             return error;
         }
-        let direct = matches!(target, Target::Pin(_));
         for pin in map
             .pins_for(target)
             .filter(|pin| map.pin(*pin).capabilities.input())
         {
-            if direct
-                || matches!(
-                    self.state(pin),
-                    PinState::Configured {
-                        direction: Direction::Input,
-                        ..
-                    }
-                )
-            {
-                self.set_listener_pin(map, pin, enabled, id, gpio);
-            }
+            self.set_listener_pin(map, pin, enabled, id, gpio);
         }
         Response::Ack
     }
@@ -454,7 +436,7 @@ impl Firmware {
         id: RequestId,
         gpio: &G,
     ) {
-        let PinState::Configured {
+        let PinState::Input {
             listener, previous, ..
         } = self.state_mut(pin)
         else {
@@ -477,15 +459,14 @@ impl Firmware {
     fn query(&self, pin: PinId, what: Query) -> QueryValue {
         match (self.state(pin), what) {
             (PinState::Unset, _) => QueryValue::Unset,
-            (PinState::Configured { direction, .. }, Query::Direction) => {
-                QueryValue::Direction(direction)
-            }
-            (PinState::Configured { pull_up, .. }, Query::Pullup) => {
-                QueryValue::Toggle(pull_up.into())
-            }
-            (PinState::Configured { listener, .. }, Query::Listen) => {
+            (PinState::Input { .. }, Query::Direction) => QueryValue::Direction(Direction::Input),
+            (PinState::Output, Query::Direction) => QueryValue::Direction(Direction::Output),
+            (PinState::Input { pull_up, .. }, Query::Pullup) => QueryValue::Toggle(pull_up.into()),
+            (PinState::Output, Query::Pullup) => QueryValue::Toggle(Toggle::Off),
+            (PinState::Input { listener, .. }, Query::Listen) => {
                 QueryValue::Toggle(listener.is_some().into())
             }
+            (PinState::Output, Query::Listen) => QueryValue::Toggle(Toggle::Off),
         }
     }
 
@@ -496,7 +477,7 @@ impl Firmware {
         for pin in map.pin_ids() {
             let state = self.state_mut(pin);
             if !matches!(state, PinState::Unset) && map.pin(pin).capabilities.input() {
-                gpio.configure(pin, PinMode::Input { pull_up: false });
+                gpio.configure(pin, PinMode::Input);
             }
             *state = PinState::Unset;
         }
@@ -609,10 +590,15 @@ mod tests {
 
         fn configure(&mut self, pin: PinId, mode: PinMode) {
             match mode {
-                PinMode::Input { pull_up } => {
+                PinMode::Input => {
                     self.inputs[pin.index()] = true;
                     self.outputs[pin.index()] = false;
-                    self.pull_ups[pin.index()] = pull_up;
+                    self.pull_ups[pin.index()] = false;
+                }
+                PinMode::InputPullup => {
+                    self.inputs[pin.index()] = true;
+                    self.outputs[pin.index()] = false;
+                    self.pull_ups[pin.index()] = true;
                 }
                 PinMode::Output { initial } => {
                     self.inputs[pin.index()] = false;
@@ -1080,6 +1066,103 @@ mod tests {
                 },
             })
         );
+    }
+
+    #[test]
+    fn changing_listened_input_to_output_drops_input_only_state() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let pin = SYNTH_MAP.pin_id(0);
+
+        firmware.handle(
+            request(
+                1,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Input,
+                },
+            ),
+            &mut gpio,
+        );
+        firmware.handle(
+            request(
+                110,
+                Request::Listen {
+                    target: b"PIO0_0",
+                    state: Toggle::On,
+                },
+            ),
+            &mut gpio,
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::On)
+        );
+
+        firmware.handle(
+            request(
+                2,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Output,
+                },
+            ),
+            &mut gpio,
+        );
+
+        assert_eq!(
+            firmware.query(pin, Query::Direction),
+            QueryValue::Direction(Direction::Output)
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Pullup),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        gpio.values[pin.index()] = Level::High;
+        assert_eq!(firmware.poll_listener(&gpio), None);
+    }
+
+    #[test]
+    fn listener_on_output_is_acknowledged_without_becoming_active() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let pin = SYNTH_MAP.pin_id(0);
+
+        firmware.handle(
+            request(
+                1,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Output,
+                },
+            ),
+            &mut gpio,
+        );
+        assert_eq!(
+            firmware
+                .handle(
+                    request(
+                        120,
+                        Request::Listen {
+                            target: b"PIO0_0",
+                            state: Toggle::On,
+                        },
+                    ),
+                    &mut gpio,
+                )
+                .body,
+            Response::Ack
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        gpio.values[pin.index()] = Level::High;
+        assert_eq!(firmware.poll_listener(&gpio), None);
     }
 
     #[test]
