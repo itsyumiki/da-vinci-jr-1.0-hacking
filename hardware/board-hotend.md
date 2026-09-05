@@ -5,7 +5,7 @@ The hotend components are mostly standard, with an extra flash chip for hotend i
 - 1x Heater
 - 1x NTC
 - 1x Fan
-- 1x Filament sensor (?)
+- 1x Filament sensor
 - 1x Atmel AT24C02D Flash Memory
 
 ## Atmel AT24C02D Flash Memory

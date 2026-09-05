@@ -191,7 +191,7 @@ We have 5 PIOs available, PA through PE.
 | ---- | ------------ | ----------- | ------- | --------- |
 | PA0  |              |             | ❌      | ❌        |
 | PA1  |              |             | ❌      | ❌        |
-| PA2  |              |             | ❌      | ❌        |
+| PA2  | Buzzer       |             | ❌      | ✅        |
 | PA3  |              |             | ❌      | ❌        |
 | PA4  |              |             | ❌      | ❌        |
 | PA5  |              |             | ❌      | ❌        |
@@ -246,15 +246,15 @@ We have 5 PIOs available, PA through PE.
 
 | Pin  | Connected to | Description | Traced? | Verified? |
 | ---- | ------------ | ----------- | ------- | --------- |
-| PC0  |              |             |         |           |
-| PC1  |              |             |         |           |
-| PC2  |              |             |         |           |
-| PC3  |              |             |         |           |
-| PC4  |              |             |         |           |
-| PC5  |              |             |         |           |
-| PC6  |              |             |         |           |
-| PC7  |              |             |         |           |
-| PC8  |              |             |         |           |
+| PC0  | LCD DB0      | Data line   | ❌      | ✅        |
+| PC1  | LCD DB1      | Data line   | ❌      | ✅        |
+| PC2  | LCD DB2      | Data line   | ❌      | ✅        |
+| PC3  | LCD DB3      | Data line   | ❌      | ✅        |
+| PC4  | LCD DB4      | Data line   | ❌      | ✅        |
+| PC5  | LCD DB5      | Data line   | ❌      | ✅        |
+| PC6  | LCD DB6      | Data line   | ❌      | ✅        |
+| PC7  | LCD DB7      | Data line   | ❌      | ✅        |
+| PC8  | LCD R/W      | R/W         | ❌      | ✅        |
 | PC9  |              |             |         |           |
 | PC10 |              |             |         |           |
 | PC11 |              |             |         |           |

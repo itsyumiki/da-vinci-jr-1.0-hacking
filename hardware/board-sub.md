@@ -33,18 +33,18 @@ The connector mentioned here is the 22 pin connector.
 | --- | ---- | ---------------------------- | ------------- | --------- | ------- | --------- |
 | 01  | VSS  | Ground                       | GND           | ✅        | GND     | ✅        |
 | 02  | VDD  | Supply Voltage for logic     | 5V            | ✅        | 5V      | ✅        |
-| 03  | VO   | Operating voltage            | -             | ✅        | -       | -         |
+| 03  | VO   | Contrast                     | -             | ✅        | -       | ✅        |
 | 04  | RS   | H: DATA, L: Instruction code | 05            | ✅        |
-| 05  | R/W  | H: Read L: Write             | 04            | ✅        |
+| 05  | R/W  | H: Read L: Write             | 04            | ✅        | PC8     | ✅        |
 | 06  | E    | Chip enable signal           | 03            | ✅        |
-| 07  | DB0  | Data bus line                | 06            | ✅        |
-| 08  | DB1  | Data bus line                | 07            | ✅        |
-| 09  | DB2  | Data bus line                | 08            | ✅        |
-| 10  | DB3  | Data bus line                | 09            | ✅        |
-| 11  | DB4  | Data bus line                | 10            | ✅        |
-| 12  | DB5  | Data bus line                | 11            | ✅        |
-| 13  | DB6  | Data bus line                | 12            | ✅        |
-| 14  | DB7  | Data bus line                | 13            | ✅        |
+| 07  | DB0  | Data bus line                | 06            | ✅        | PC0     | ✅        |
+| 08  | DB1  | Data bus line                | 07            | ✅        | PC1     | ✅        |
+| 09  | DB2  | Data bus line                | 08            | ✅        | PC2     | ✅        |
+| 10  | DB3  | Data bus line                | 09            | ✅        | PC3     | ✅        |
+| 11  | DB4  | Data bus line                | 10            | ✅        | PC4     | ✅        |
+| 12  | DB5  | Data bus line                | 11            | ✅        | PC5     | ✅        |
+| 13  | DB6  | Data bus line                | 12            | ✅        | PC6     | ✅        |
+| 14  | DB7  | Data bus line                | 13            | ✅        | PC7     | ✅        |
 | 15  | A    | Backlight +                  | 5V            | ✅        |
 | 16  | K    | Backlight -                  | 14            | ✅        |
 
