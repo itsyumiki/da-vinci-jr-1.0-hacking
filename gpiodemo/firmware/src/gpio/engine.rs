@@ -145,6 +145,12 @@ impl Firmware {
         kind: BulkKind,
         gpio: &G,
     ) -> Packet<FirmwareResponse> {
+        if self.bulk.is_some() {
+            return Packet {
+                id,
+                body: bad_packet(),
+            };
+        }
         self.bulk = Some(BulkResponse { id, next: 0, kind });
         self.poll_bulk(gpio)
             .expect("new bulk response always yields a packet")
@@ -730,6 +736,73 @@ mod tests {
             packet,
             Some(Packet {
                 id,
+                body: Response::Ack,
+            })
+        );
+        assert!(firmware.poll_bulk(&gpio).is_none());
+    }
+
+    #[test]
+    fn active_bulk_stream_rejects_replacement_but_allows_one_shot_requests() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let stream_id = RequestId::new(20).unwrap();
+
+        assert_eq!(
+            firmware.handle(request(20, Request::Help), &mut gpio),
+            Packet {
+                id: stream_id,
+                body: Response::Help {
+                    command: Command::ALL[0],
+                },
+            }
+        );
+
+        for (id, body) in [
+            (21, Request::Map),
+            (22, Request::Help),
+            (
+                23,
+                Request::Get {
+                    target: b"ALL".as_slice(),
+                },
+            ),
+            (
+                24,
+                Request::Query {
+                    target: b"ALL".as_slice(),
+                    what: Query::Direction,
+                },
+            ),
+        ] {
+            assert_eq!(
+                firmware.handle(request(id, body), &mut gpio).body,
+                bad_packet()
+            );
+        }
+
+        assert_eq!(
+            firmware
+                .handle(request(25, Request::Version), &mut gpio)
+                .body,
+            Response::Version {
+                version: PROTOCOL_VERSION,
+            }
+        );
+
+        for &command in &Command::ALL[1..] {
+            assert_eq!(
+                firmware.poll_bulk(&gpio),
+                Some(Packet {
+                    id: stream_id,
+                    body: Response::Help { command },
+                })
+            );
+        }
+        assert_eq!(
+            firmware.poll_bulk(&gpio),
+            Some(Packet {
+                id: stream_id,
                 body: Response::Ack,
             })
         );
