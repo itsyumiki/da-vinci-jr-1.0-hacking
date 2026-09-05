@@ -269,20 +269,22 @@ impl App {
                 text("").into()
             };
 
-        let listen: Element<'_, Message> = if state.mode.is_some_and(Mode::is_input)
-            && info.capabilities.input()
-        {
-            let label = if matches!(state.listener, ListenerState::On | ListenerState::Disabling) {
-                "Stop"
+        let listen: Element<'_, Message> =
+            if state.mode.is_some_and(Mode::is_input) && info.capabilities.input() {
+                let label = if matches!(
+                    state.listener,
+                    ListenerState::On { .. } | ListenerState::Disabling { .. }
+                ) {
+                    "Stop"
+                } else {
+                    "Listen"
+                };
+                native_button(label)
+                    .on_press_maybe((!state.listener.is_pending()).then_some(Message::Listen(pin)))
+                    .into()
             } else {
-                "Listen"
+                text("").into()
             };
-            native_button(label)
-                .on_press_maybe((!state.listener.is_pending()).then_some(Message::Listen(pin)))
-                .into()
-        } else {
-            text("").into()
-        };
 
         row![
             name,

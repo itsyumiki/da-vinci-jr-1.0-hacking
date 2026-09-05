@@ -149,7 +149,6 @@ pub(super) enum DeviceEvent {
 enum RequestLifetime {
     OneShot,
     StreamUntilAck,
-    PersistentListener,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -233,14 +232,28 @@ impl Mode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ListenerState {
     Off,
-    Enabling,
-    On,
-    Disabling,
+    Enabling {
+        request_id: RequestId,
+    },
+    On {
+        stream_id: RequestId,
+    },
+    Disabling {
+        request_id: RequestId,
+        stream_id: RequestId,
+    },
 }
 
 impl ListenerState {
     pub(super) const fn is_pending(self) -> bool {
-        matches!(self, Self::Enabling | Self::Disabling)
+        matches!(self, Self::Enabling { .. } | Self::Disabling { .. })
+    }
+
+    pub(super) const fn stream_id(self) -> Option<RequestId> {
+        match self {
+            Self::On { stream_id } | Self::Disabling { stream_id, .. } => Some(stream_id),
+            Self::Off | Self::Enabling { .. } => None,
+        }
     }
 }
 
@@ -273,7 +286,6 @@ struct Pending {
 struct RoutePin {
     info: PinInfo,
     state: PinState,
-    listener_id: Option<RequestId>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -351,7 +363,6 @@ impl MapBuilder {
                 .map(|info| RoutePin {
                     info,
                     state: PinState::UNSET,
-                    listener_id: None,
                 })
                 .collect(),
         }
@@ -537,8 +548,10 @@ impl DeviceSession {
         }
         let enabled = match state.listener {
             ListenerState::Off => true,
-            ListenerState::On => false,
-            ListenerState::Enabling | ListenerState::Disabling => return Ok(Vec::new()),
+            ListenerState::On { .. } => false,
+            ListenerState::Enabling { .. } | ListenerState::Disabling { .. } => {
+                return Ok(Vec::new());
+            }
         };
         self.set_listener_scope(pin.route, Target::Pin(pin), enabled)
     }
@@ -556,12 +569,7 @@ impl DeviceSession {
             }
             let mut sent = Vec::with_capacity(2);
             if mode == Mode::Output && self.target_has_listener(route, target) {
-                self.mark_listener_pending(route, target, false);
-                let request = Request::Listen {
-                    target,
-                    state: Toggle::Off,
-                };
-                sent.push(self.send(route, request)?);
+                sent.extend(self.set_listener_scope(route, target, false)?);
             }
             self.mark_mode_pending(route, target, mode);
             let request = Request::Direction {
@@ -617,12 +625,29 @@ impl DeviceSession {
         target: Target,
         enabled: bool,
     ) -> Result<Vec<String>, String> {
-        self.mark_listener_pending(route, target, enabled);
         let request = Request::Listen {
             target,
             state: enabled.into(),
         };
-        self.send(route, request).map(|line| vec![line])
+        let (id, line) = self.send_tracked(route, request)?;
+        self.for_target_pins_mut(route, target, |pin| {
+            if !pin.state.mode.is_some_and(Mode::is_input) {
+                return;
+            }
+            pin.state.listener = if enabled {
+                ListenerState::Enabling { request_id: id }
+            } else {
+                match pin.state.listener {
+                    ListenerState::On { stream_id }
+                    | ListenerState::Disabling { stream_id, .. } => ListenerState::Disabling {
+                        request_id: id,
+                        stream_id,
+                    },
+                    state => state,
+                }
+            };
+        });
+        Ok(vec![line])
     }
 
     pub(super) fn set_scope_level(
@@ -670,7 +695,7 @@ impl DeviceSession {
     fn target_has_listener(&self, route: RouteKey, target: Target) -> bool {
         self.target_pins(route, target).into_iter().any(|pin| {
             self.pin_state(pin)
-                .is_some_and(|state| state.listener == ListenerState::On)
+                .is_some_and(|state| state.listener.stream_id().is_some())
         })
     }
 
@@ -686,21 +711,7 @@ impl DeviceSession {
         }
     }
 
-    fn mark_listener_pending(&mut self, route: RouteKey, target: Target, enabled: bool) {
-        for pin in self.target_pins(route, target) {
-            if let Some(pin) = self.route_pin_mut(pin)
-                && pin.state.mode.is_some_and(Mode::is_input)
-            {
-                pin.state.listener = if enabled {
-                    ListenerState::Enabling
-                } else {
-                    ListenerState::Disabling
-                };
-            }
-        }
-    }
-
-    fn fail_request_state(&mut self, route: RouteKey, request: Request) {
+    fn fail_request_state(&mut self, id: RequestId, route: RouteKey, request: Request) {
         match request {
             Request::Direction { target, .. } | Request::Pullup { target, .. } => {
                 for pin in self.target_pins(route, target) {
@@ -717,17 +728,23 @@ impl DeviceSession {
                 }
             }
             Request::Listen { target, state } => {
-                for pin in self.target_pins(route, target) {
-                    if let Some(pin) = self.route_pin_mut(pin)
-                        && pin.state.mode.is_some()
-                    {
-                        pin.state.listener = if state == Toggle::On {
+                self.for_target_pins_mut(route, target, |pin| {
+                    pin.state.listener = match (state, pin.state.listener) {
+                        (Toggle::On, ListenerState::Enabling { request_id })
+                            if request_id == id =>
+                        {
                             ListenerState::Off
-                        } else {
-                            ListenerState::On
-                        };
-                    }
-                }
+                        }
+                        (
+                            Toggle::Off,
+                            ListenerState::Disabling {
+                                request_id,
+                                stream_id,
+                            },
+                        ) if request_id == id => ListenerState::On { stream_id },
+                        (_, listener) => listener,
+                    };
+                });
             }
             _ => {}
         }
@@ -751,7 +768,6 @@ impl DeviceSession {
                     capabilities,
                 },
                 state: PinState::UNSET,
-                listener_id: None,
             })
             .collect();
         self.routes[route.0].map = Some(RouteMap { banks, pins });
@@ -769,7 +785,11 @@ impl DeviceSession {
         self.io.disconnect()
     }
 
-    pub(super) fn send(&mut self, route: RouteKey, request: Request) -> Result<String, String> {
+    fn send_tracked(
+        &mut self,
+        route: RouteKey,
+        request: Request,
+    ) -> Result<(RequestId, String), String> {
         let (id, frame) = self.prepare(route, request)?;
         let line = String::from_utf8_lossy(frame.as_ref())
             .trim_end_matches(['\r', '\n'])
@@ -778,7 +798,11 @@ impl DeviceSession {
             self.cancel(id);
             return Err(error);
         }
-        Ok(line)
+        Ok((id, line))
+    }
+
+    pub(super) fn send(&mut self, route: RouteKey, request: Request) -> Result<String, String> {
+        self.send_tracked(route, request).map(|(_, line)| line)
     }
 
     pub(super) fn send_raw(&self, line: &str) -> Result<(), String> {
@@ -881,11 +905,22 @@ impl DeviceSession {
         for _ in RequestId::MIN..=RequestId::MAX {
             let id = self.next_id;
             self.next_id = id.next();
-            if self.pending[id.slot()].is_none() {
+            if !self.request_id_in_use(id) {
                 return Ok(id);
             }
         }
         Err("All 999 request IDs are still in use".into())
+    }
+
+    fn request_id_in_use(&self, id: RequestId) -> bool {
+        self.pending[id.slot()].is_some()
+            || self.routes.iter().any(|route| {
+                route.map.as_ref().is_some_and(|map| {
+                    map.pins
+                        .iter()
+                        .any(|pin| pin.state.listener.stream_id() == Some(id))
+                })
+            })
     }
 
     fn received(&mut self, incoming: OwnedResponse) -> Result<DeviceEvent, String> {
@@ -911,27 +946,27 @@ impl DeviceSession {
 
         match incoming.packet.body {
             WireResponse::Hello => {
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::Hello {
                     route: pending.route,
                 })
             }
             WireResponse::Status { identity } => {
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::Status {
                     route: pending.route,
                     identity,
                 })
             }
             WireResponse::Version { version } => {
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::Version {
                     route: pending.route,
                     version,
                 })
             }
             WireResponse::Help { command } => {
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::Help {
                     route: pending.route,
                     command,
@@ -969,16 +1004,11 @@ impl DeviceSession {
                         return Err(error);
                     }
                 };
-                if request_lifetime(pending.request) == RequestLifetime::PersistentListener
-                    && !self.listener_is_active(pin, id)
-                {
-                    return Ok(DeviceEvent::Untracked);
-                }
                 if let Some(route_pin) = self.route_pin_mut(pin) {
                     route_pin.state.level = Some(level);
                     route_pin.state.value_pending = false;
                 }
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::PinValue { pin, level })
             }
             WireResponse::State {
@@ -994,7 +1024,7 @@ impl DeviceSession {
                     }
                 };
                 self.apply_query_state(pin, what, value);
-                self.complete(id, false, false);
+                self.complete(id, false);
                 Ok(DeviceEvent::PinState { pin, what, value })
             }
             WireResponse::Error(error) => {
@@ -1057,7 +1087,7 @@ impl DeviceSession {
                     return Err(format!("MAP {id} completed without discovery state"));
                 };
                 self.routes[pending.route.0].map = Some(builder.finish());
-                self.complete(id, true, false);
+                self.complete(id, true);
                 self.sync_listeners();
                 return Ok(DeviceEvent::MapReady {
                     route: pending.route,
@@ -1111,34 +1141,27 @@ impl DeviceSession {
                 });
             }
             Request::Listen { target, state } => {
-                let previous = self.listener_ids(pending.route, target);
-                if state == Toggle::On {
-                    self.for_target_pins_mut(pending.route, target, |pin| {
-                        if pin.state.mode.is_some_and(Mode::is_input)
-                            && pin.info.capabilities.input()
+                self.for_target_pins_mut(pending.route, target, |pin| {
+                    pin.state.listener = match (state, pin.state.listener) {
+                        (Toggle::On, ListenerState::Enabling { request_id })
+                            if request_id == id =>
                         {
-                            pin.listener_id = Some(id);
-                            pin.state.listener = ListenerState::On;
+                            ListenerState::On { stream_id: id }
                         }
-                    });
-                } else {
-                    self.for_target_pins_mut(pending.route, target, |pin| {
-                        pin.listener_id = None;
-                        pin.state.listener = ListenerState::Off;
-                    });
-                }
-                for previous in previous {
-                    self.release_listener(previous);
-                }
+                        (Toggle::Off, ListenerState::Disabling { request_id, .. })
+                            if request_id == id =>
+                        {
+                            ListenerState::Off
+                        }
+                        (_, listener) => listener,
+                    };
+                });
                 self.sync_listeners();
             }
             _ => {}
         }
 
-        let listener_active = request_lifetime(pending.request)
-            == RequestLifetime::PersistentListener
-            && self.listener_id_active(id);
-        self.complete(id, true, listener_active);
+        self.complete(id, true);
         let sent = follow_up
             .map(|request| self.send(pending.route, request))
             .transpose()?;
@@ -1181,14 +1204,13 @@ impl DeviceSession {
         }
     }
 
-    fn complete(&mut self, id: RequestId, terminal_ack: bool, listener_active: bool) {
+    fn complete(&mut self, id: RequestId, terminal_ack: bool) {
         let Some(pending) = self.pending[id.slot()] else {
             return;
         };
         let done = match request_lifetime(pending.request) {
             RequestLifetime::OneShot => true,
             RequestLifetime::StreamUntilAck => terminal_ack,
-            RequestLifetime::PersistentListener => terminal_ack && !listener_active,
         };
         if done {
             self.pending[id.slot()] = None;
@@ -1211,24 +1233,12 @@ impl DeviceSession {
         }
     }
 
-    fn listener_ids(&self, route: RouteKey, target: Target) -> Vec<RequestId> {
-        let Some(map) = self.routes[route.0].map.as_ref() else {
-            return Vec::new();
-        };
-        map.pins
-            .iter()
-            .enumerate()
-            .filter(|(index, pin)| target_contains(route, target, *index, pin.info.bank))
-            .filter_map(|(_, pin)| pin.listener_id)
-            .collect()
-    }
-
     fn listener_is_active(&self, pin: PinKey, id: RequestId) -> bool {
         self.routes
             .get(pin.route.0)
             .and_then(|route| route.map.as_ref())
             .and_then(|map| map.pins.get(pin.index))
-            .is_some_and(|pin| pin.listener_id == Some(id))
+            .is_some_and(|pin| pin.state.listener.stream_id() == Some(id))
     }
 
     fn accept_listener_values(
@@ -1254,35 +1264,10 @@ impl DeviceSession {
             .collect()
     }
 
-    fn listener_id_active(&self, id: RequestId) -> bool {
-        self.routes.iter().any(|route| {
-            route
-                .map
-                .as_ref()
-                .is_some_and(|map| map.pins.iter().any(|pin| pin.listener_id == Some(id)))
-        })
-    }
-
-    fn release_listener(&mut self, id: RequestId) {
-        if !self.listener_id_active(id) {
-            self.pending[id.slot()] = None;
-        }
-    }
-
     fn retire(&mut self, id: RequestId) {
         let pending = self.pending[id.slot()];
         if let Some(pending) = pending {
-            self.fail_request_state(pending.route, pending.request);
-        }
-        for route in &mut self.routes {
-            if let Some(map) = &mut route.map {
-                for pin in &mut map.pins {
-                    if pin.listener_id == Some(id) {
-                        pin.listener_id = None;
-                        pin.state.listener = ListenerState::Off;
-                    }
-                }
-            }
+            self.fail_request_state(id, pending.route, pending.request);
         }
         if let Some(pending) = pending
             && pending.request == Request::Map
@@ -1295,7 +1280,7 @@ impl DeviceSession {
 
     fn cancel(&mut self, id: RequestId) {
         if let Some(pending) = self.pending[id.slot()] {
-            self.fail_request_state(pending.route, pending.request);
+            self.fail_request_state(id, pending.route, pending.request);
             if pending.request == Request::Map {
                 self.routes[pending.route.0].discovery = None;
             }
@@ -1307,7 +1292,6 @@ impl DeviceSession {
         if let Some(map) = self.routes[route.0].map.as_mut() {
             for pin in &mut map.pins {
                 pin.state = PinState::UNSET;
-                pin.listener_id = None;
             }
         }
         self.routes[route.0].discovery = None;
@@ -1340,7 +1324,7 @@ impl DeviceSession {
                         .iter()
                         .enumerate()
                         .filter_map(|(index, pin)| {
-                            pin.listener_id.map(|id| ListenerPin {
+                            pin.state.listener.stream_id().map(|id| ListenerPin {
                                 key: PinKey {
                                     route: RouteKey(route_index),
                                     index,
@@ -1386,9 +1370,6 @@ fn request_lifetime(request: Request) -> RequestLifetime {
             target: Target::Bank(_) | Target::All,
             ..
         } => RequestLifetime::StreamUntilAck,
-        Request::Listen {
-            state: Toggle::On, ..
-        } => RequestLifetime::PersistentListener,
         _ => RequestLifetime::OneShot,
     }
 }
@@ -1444,7 +1425,6 @@ mod tests {
                         capabilities: PinCapabilities::GPIO,
                     },
                     state: PinState::UNSET,
-                    listener_id: None,
                 },
                 RoutePin {
                     info: PinInfo {
@@ -1458,7 +1438,6 @@ mod tests {
                         capabilities: PinCapabilities::GPIO,
                     },
                     state: PinState::UNSET,
-                    listener_id: None,
                 },
             ],
         });
@@ -1476,7 +1455,6 @@ mod tests {
                     capabilities: PinCapabilities::INPUT,
                 },
                 state: PinState::UNSET,
-                listener_id: None,
             }],
         });
         let pa00 = connection.pin_key(sam, "PA00").unwrap();
@@ -1849,8 +1827,9 @@ mod tests {
         let listener_id = request_id(8);
         let stale_id = request_id(9);
         let pin = connection.route_pin_mut(pa00).unwrap();
-        pin.listener_id = Some(listener_id);
-        pin.state.listener = ListenerState::On;
+        pin.state.listener = ListenerState::On {
+            stream_id: listener_id,
+        };
         pin.state.value_pending = true;
 
         let values = connection.accept_listener_values(vec![
@@ -1959,11 +1938,12 @@ mod tests {
     #[test]
     fn output_mode_stops_listener_and_initializes_low() {
         let (mut connection, _, _, pa00, _, _) = setup();
+        let stream_id = request_id(8);
         connection.route_pin_mut(pa00).unwrap().state = PinState {
             mode: Some(Mode::Input),
             target_mode: None,
             level: Some(Level::High),
-            listener: ListenerState::On,
+            listener: ListenerState::On { stream_id },
             value_pending: false,
         };
 
@@ -1973,7 +1953,10 @@ mod tests {
         assert!(sent[1].contains("DIR PA00 OUT"));
         assert_eq!(
             connection.pin_state(pa00).unwrap().listener,
-            ListenerState::Disabling
+            ListenerState::Disabling {
+                request_id: line_id(&sent[0]),
+                stream_id,
+            }
         );
         assert_eq!(
             connection.pin_state(pa00).unwrap().target_mode,
@@ -2055,7 +2038,11 @@ mod tests {
 
     #[test]
     fn resetting_one_route_preserves_unrelated_route_state_and_requests() {
-        let (mut connection, sam, lpc, _, lpc23, _) = setup();
+        let (mut connection, sam, lpc, pa00, lpc23, _) = setup();
+        let sam_stream = request_id(8);
+        connection.route_pin_mut(pa00).unwrap().state.listener = ListenerState::On {
+            stream_id: sam_stream,
+        };
         connection.route_pin_mut(lpc23).unwrap().state.mode = Some(Mode::Input);
         let (lpc_request, _) = connection.prepare(lpc, Request::Hello).unwrap();
         let (sam_reset, _) = connection.prepare(sam, Request::Bye).unwrap();
@@ -2069,47 +2056,36 @@ mod tests {
 
         assert!(connection.pending[sam_reset.slot()].is_none());
         assert!(connection.pending[lpc_request.slot()].is_some());
+        assert!(!connection.request_id_in_use(sam_stream));
+        assert_eq!(connection.pin_state(pa00).unwrap(), PinState::UNSET);
         assert_eq!(connection.pin_state(lpc23).unwrap().mode, Some(Mode::Input));
     }
 
     #[test]
-    fn listener_lifetime_persists_and_grouped_streams_end_at_ack() {
+    fn listener_stream_id_outlives_acked_request_and_grouped_streams_end_at_ack() {
         let (mut connection, sam, _, pa00, _, pioa) = setup();
-        let direction = Request::Direction {
-            target: Target::Pin(pa00),
-            direction: Direction::Input,
-        };
-        let (direction_id, _) = connection.prepare(sam, direction).unwrap();
-        connection
-            .received(incoming("SAM", direction_id, WireResponse::Ack))
-            .unwrap();
+        connection.route_pin_mut(pa00).unwrap().state.mode = Some(Mode::Input);
 
-        let listen = Request::Listen {
-            target: Target::Pin(pa00),
-            state: Toggle::On,
-        };
-        let (listen_id, _) = connection.prepare(sam, listen).unwrap();
+        let listen = connection
+            .set_listener_scope(sam, Target::Pin(pa00), true)
+            .unwrap();
+        let listen_id = line_id(&listen[0]);
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::Enabling {
+                request_id: listen_id,
+            }
+        );
         connection
             .received(incoming("SAM", listen_id, WireResponse::Ack))
             .unwrap();
-        assert!(connection.pending[listen_id.slot()].is_some());
+        assert!(connection.pending[listen_id.slot()].is_none());
         assert_eq!(
-            connection
-                .received(incoming(
-                    "SAM",
-                    listen_id,
-                    WireResponse::Value {
-                        target: "PA00".into(),
-                        level: Level::High,
-                    },
-                ))
-                .unwrap(),
-            DeviceEvent::PinValue {
-                pin: pa00,
-                level: Level::High,
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::On {
+                stream_id: listen_id,
             }
         );
-        assert!(connection.pending[listen_id.slot()].is_some());
 
         let (get_id, _) = connection
             .prepare(
@@ -2137,23 +2113,17 @@ mod tests {
     }
 
     #[test]
-    fn request_ids_wrap_and_skip_persistent_listener() {
+    fn request_ids_wrap_and_skip_active_listener_stream() {
         let (mut connection, sam, _, pa00, _, _) = setup();
-        connection.routes[sam.0].map.as_mut().unwrap().pins[pa00.index]
-            .state
-            .mode = Some(Mode::Input);
-        let (listener, _) = connection
-            .prepare(
-                sam,
-                Request::Listen {
-                    target: Target::Pin(pa00),
-                    state: Toggle::On,
-                },
-            )
+        connection.route_pin_mut(pa00).unwrap().state.mode = Some(Mode::Input);
+        let listener = connection
+            .set_listener_scope(sam, Target::Pin(pa00), true)
             .unwrap();
+        let listener = line_id(&listener[0]);
         connection
             .received(incoming("SAM", listener, WireResponse::Ack))
             .unwrap();
+
         for _ in 2..=RequestId::MAX {
             let (id, _) = connection.prepare(sam, Request::Hello).unwrap();
             connection
@@ -2162,6 +2132,110 @@ mod tests {
         }
         let (id, _) = connection.prepare(sam, Request::Hello).unwrap();
         assert_eq!(id, request_id(2));
-        assert!(connection.pending[listener.slot()].is_some());
+        assert!(connection.pending[listener.slot()].is_none());
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::On {
+                stream_id: listener,
+            }
+        );
+    }
+
+    #[test]
+    fn failed_listener_transitions_restore_the_previous_semantic_state() {
+        let (mut connection, sam, _, pa00, _, _) = setup();
+        connection.route_pin_mut(pa00).unwrap().state.mode = Some(Mode::Input);
+
+        let sent = connection
+            .set_listener_scope(sam, Target::Pin(pa00), true)
+            .unwrap();
+        let on_id = line_id(&sent[0]);
+        connection
+            .received(incoming(
+                "SAM",
+                on_id,
+                WireResponse::Error(ProtocolResponseError::BadPacket),
+            ))
+            .unwrap();
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::Off
+        );
+
+        let stream_id = request_id(8);
+        connection.route_pin_mut(pa00).unwrap().state.listener = ListenerState::On { stream_id };
+        let sent = connection
+            .set_listener_scope(sam, Target::Pin(pa00), false)
+            .unwrap();
+        let off_id = line_id(&sent[0]);
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::Disabling {
+                request_id: off_id,
+                stream_id,
+            }
+        );
+        connection
+            .received(incoming(
+                "SAM",
+                off_id,
+                WireResponse::Error(ProtocolResponseError::BadPacket),
+            ))
+            .unwrap();
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::On { stream_id }
+        );
+    }
+
+    #[test]
+    fn grouped_listener_stop_preserves_each_stream_until_ack() {
+        let (mut connection, sam, _, pa00, _, pioa) = setup();
+        let pa01 = connection.pin_key(sam, "PA01").unwrap();
+        let first = request_id(8);
+        let second = request_id(9);
+        connection.route_pin_mut(pa00).unwrap().state = PinState {
+            mode: Some(Mode::Input),
+            listener: ListenerState::On { stream_id: first },
+            ..PinState::UNSET
+        };
+        connection.route_pin_mut(pa01).unwrap().state = PinState {
+            mode: Some(Mode::Input),
+            listener: ListenerState::On { stream_id: second },
+            ..PinState::UNSET
+        };
+
+        let sent = connection
+            .set_listener_scope(sam, Target::Bank(pioa), false)
+            .unwrap();
+        let off_id = line_id(&sent[0]);
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::Disabling {
+                request_id: off_id,
+                stream_id: first,
+            }
+        );
+        assert_eq!(
+            connection.pin_state(pa01).unwrap().listener,
+            ListenerState::Disabling {
+                request_id: off_id,
+                stream_id: second,
+            }
+        );
+        assert!(connection.listener_is_active(pa00, first));
+        assert!(connection.listener_is_active(pa01, second));
+
+        connection
+            .received(incoming("SAM", off_id, WireResponse::Ack))
+            .unwrap();
+        assert_eq!(
+            connection.pin_state(pa00).unwrap().listener,
+            ListenerState::Off
+        );
+        assert_eq!(
+            connection.pin_state(pa01).unwrap().listener,
+            ListenerState::Off
+        );
     }
 }
