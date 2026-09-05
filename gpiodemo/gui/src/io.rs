@@ -155,6 +155,18 @@ impl IoState {
         self.listeners.clear();
         self.listener_updates.clear();
     }
+
+    fn clear_stream_state(&mut self) {
+        self.writes.clear();
+        self.write_offset = 0;
+        self.reader.clear();
+        self.clear_listeners();
+    }
+
+    fn become_disconnected(&mut self) {
+        self.port = None;
+        self.clear_stream_state();
+    }
 }
 
 fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
@@ -197,11 +209,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
                 }
                 Err(error) if transient_io_error(&error) => {}
                 Err(error) => {
-                    state.port = None;
-                    state.writes.clear();
-                    state.write_offset = 0;
-                    state.reader.clear();
-                    state.clear_listeners();
+                    state.become_disconnected();
                     let _ = events.send(IoEvent::Disconnected(Some(format!(
                         "Serial write failed: {error}"
                     ))));
@@ -236,11 +244,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             }
             Err(error) if transient_io_error(&error) => {}
             Err(error) => {
-                state.port = None;
-                state.writes.clear();
-                state.write_offset = 0;
-                state.reader.clear();
-                state.clear_listeners();
+                state.become_disconnected();
                 let _ = events.send(IoEvent::Disconnected(Some(format!(
                     "Serial read failed: {error}"
                 ))));
@@ -362,10 +366,7 @@ fn coalesce_listener_update(
 fn handle_io_command(command: IoCommand, state: &mut IoState, events: &SyncSender<IoEvent>) {
     match command {
         IoCommand::Connect(name) => {
-            state.writes.clear();
-            state.write_offset = 0;
-            state.reader.clear();
-            state.clear_listeners();
+            state.clear_stream_state();
             match serialport::new(&name, 115_200)
                 .timeout(Duration::from_millis(20))
                 .open()
@@ -375,17 +376,13 @@ fn handle_io_command(command: IoCommand, state: &mut IoState, events: &SyncSende
                     let _ = events.send(IoEvent::Connected(name));
                 }
                 Err(error) => {
-                    state.port = None;
+                    state.become_disconnected();
                     let _ = events.send(IoEvent::Error(format!("Could not open {name}: {error}")));
                 }
             }
         }
         IoCommand::Disconnect => {
-            state.port = None;
-            state.writes.clear();
-            state.write_offset = 0;
-            state.reader.clear();
-            state.clear_listeners();
+            state.become_disconnected();
             let _ = events.send(IoEvent::Disconnected(None));
         }
         IoCommand::Write(bytes) => {
