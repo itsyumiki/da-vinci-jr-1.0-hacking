@@ -1,4 +1,4 @@
-name: Build firmware
+name: Build
 
 on:
   workflow_dispatch:
@@ -7,13 +7,30 @@ permissions:
   contents: read
 
 jobs:
+  gui-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build desktop controller
+        run: cargo build --manifest-path gpiodemo/Cargo.toml -p da-vinci-gui --release
+
+      - name: Upload desktop controller
+        uses: actions/upload-artifact@v7
+        with:
+          name: da-vinci-gui-macos
+          path: gpiodemo/target/release/da-vinci-gui
+          if-no-files-found: error
+
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+        run: |
+          sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+          rustup target add thumbv7em-none-eabi
 
       - name: Build firmware
         run: just build

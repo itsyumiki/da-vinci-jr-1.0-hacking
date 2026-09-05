@@ -35,8 +35,9 @@ I want to thank everyone who has contributed to this project knowingly or unknow
 
 ## Firmware development
 
-- **[Klipper](https://github.com/klipper3d/klipper)**: primary source/reference for the SAM4E8E clock, Cortex-M startup/linker, GPIO register sequencing, and USB CDC/UDP implementation used by the SAM4E8E firmware foundation. Klipper-derived files retain their GPLv3 notices.
-- **[Atmel Software Framework](https://github.com/avrxml/asf)**: cross-reference for SAM4E8E device definitions, memory layout, and clock/USB behavior. Imported Atmel device files retain their original license headers.
+- **[atsam4-rs](https://github.com/atsam4-rs/atsam4-hal)**: HAL and peripheral definitions used by the Rust SAM4E8E firmware for clock setup and USB UDP support.
+- **[Klipper](https://github.com/klipper3d/klipper)**: reference for the original SAM4E8E clock, GPIO, and USB CDC behavior that the Rust implementation replaces.
+- **[Atmel Software Framework](https://github.com/avrxml/asf)**: cross-reference for SAM4E8E device definitions, memory layout, and clock/USB behavior.
 
 ## Firmware Archives
 

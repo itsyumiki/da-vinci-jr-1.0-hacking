@@ -1,35 +1,49 @@
-device := "/dev/tty.usbmodem101"
-slave_dir := "gpiodemo/slave"
-src_dir := slave_dir + "/src"
-conf_dir := slave_dir + "/conf"
-vendor_dir := slave_dir + "/vendor"
-cross_compile := env("CROSS_COMPILE", "arm-none-eabi-")
-cc := cross_compile + "gcc"
-objcopy := cross_compile + "objcopy"
-size := cross_compile + "size"
-
-cpu_flags := "-mcpu=cortex-m4 -mthumb -mfloat-abi=soft"
-cppflags := "-I" + src_dir + " -I" + conf_dir + " -I" + vendor_dir + "/sam4e/include -I" + vendor_dir + "/cmsis-core"
-cflags := cpu_flags + " -std=gnu11 -ffreestanding -Os -g3 -Wall -Wextra -Werror -Wshadow -Wconversion -Wsign-conversion -Wcast-align=strict -Wformat=2 -Wundef -Wstrict-prototypes -Wpointer-arith -Wwrite-strings -Wswitch-enum -Wdouble-promotion -Wvla -ffunction-sections -fdata-sections -fno-common -fno-unwind-tables -fno-asynchronous-unwind-tables"
-ldflags := cpu_flags + " -nostdlib -T" + conf_dir + "/sam4e8e.ld -Wl,--gc-sections -Wl,--build-id=none -Wl,-Map,build/firmware.map"
+device := env("DEVICE", "/dev/tty.usbmodem101")
+manifest := "gpiodemo/Cargo.toml"
+sam_target := "thumbv7em-none-eabi"
+lpc_target := "thumbv6m-none-eabi"
+firmware_elf := "gpiodemo/target/" + sam_target + "/firmware/da-vinci-firmware"
+lpc_firmware_elf := "gpiodemo/target/" + lpc_target + "/firmware/da-vinci-lpc1115"
+objcopy := env("OBJCOPY", "arm-none-eabi-objcopy")
+size := env("SIZE", "arm-none-eabi-size")
 
 default:
     @just --list
 
 build:
+    cargo build --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-firmware --no-default-features --features sam4e8e --profile firmware --target {{ sam_target }}
     mkdir -p build
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ src_dir }}/main.c -o build/main.o
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ src_dir }}/protocol.c -o build/protocol.o
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ conf_dir }}/startup.c -o build/startup.o
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ conf_dir }}/clock.c -o build/clock.o
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ conf_dir }}/gpio.c -o build/gpio.o
-    {{ cc }} {{ cppflags }} {{ cflags }} -c {{ conf_dir }}/usb_cdc.c -o build/usb_cdc.o
-    {{ cc }} {{ ldflags }} build/main.o build/protocol.o build/startup.o build/clock.o build/gpio.o build/usb_cdc.o -lgcc -o build/firmware.elf
+    cp {{ firmware_elf }} build/firmware.elf
     {{ objcopy }} -O binary build/firmware.elf build/firmware.bin
     {{ size }} build/firmware.elf
+
+build-lpc:
+    cargo build --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-lpc1115 --no-default-features --features lpc1115 --profile firmware --target {{ lpc_target }}
+    mkdir -p build
+    cp {{ lpc_firmware_elf }} build/lpc1115.elf
+    {{ objcopy }} -O binary build/lpc1115.elf build/lpc1115.bin
+    {{ size }} build/lpc1115.elf
+
+gui:
+    cargo run --manifest-path {{ manifest }} -p da-vinci-gui
+
+gui-release:
+    cargo run --manifest-path {{ manifest }} -p da-vinci-gui --release
+
+check:
+    cargo fmt --manifest-path {{ manifest }} --all -- --check
+    cargo test --manifest-path {{ manifest }} --workspace --all-features
+    cargo clippy --manifest-path {{ manifest }} --workspace --all-targets --all-features -- -D warnings
+
+verify: check
+    cargo build --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-firmware --no-default-features --features sam4e8e --profile firmware --target {{ sam_target }}
+    cargo build --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-lpc1115 --no-default-features --features lpc1115 --profile firmware --target {{ lpc_target }}
+    cargo clippy --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-firmware --no-default-features --features sam4e8e --profile firmware --target {{ sam_target }} -- -D warnings
+    cargo clippy --manifest-path {{ manifest }} -p da-vinci-firmware --bin da-vinci-lpc1115 --no-default-features --features lpc1115 --profile firmware --target {{ lpc_target }} -- -D warnings
 
 flash file="build/firmware.bin":
     bossac --port={{ device }} -e -w -v -b {{ file }}
 
 clean:
+    cargo clean --manifest-path {{ manifest }}
     rm -rf build

@@ -22,9 +22,8 @@ ghidra/
 schematic/*.lck
 schematic/.history/
 
-# Python cache
-__pycache__/
+# Rust
+target/
 
 # MacOS stuff
 .DS_Store
-gpiodemo/master/webui/

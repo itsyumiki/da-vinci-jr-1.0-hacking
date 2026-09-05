@@ -1,0 +1,18 @@
+[workspace]
+members = ["protocol", "firmware", "gui"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-only"
+rust-version = "1.88"
+
+[workspace.dependencies]
+da-vinci-protocol = { path = "protocol" }
+
+[profile.firmware]
+inherits = "release"
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
