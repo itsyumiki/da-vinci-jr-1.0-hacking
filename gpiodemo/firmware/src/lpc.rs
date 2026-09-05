@@ -1,5 +1,5 @@
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
-use crate::gpio::map::{BankId, BankInfo, Capabilities, PinId, PinInfo, PinMap};
+use crate::gpio::map::{BankId, Capabilities, PinId, PinInfo, PinMap};
 
 #[cfg(all(target_arch = "arm", feature = "lpc1115"))]
 use core::ptr::{read_volatile, write_volatile};
@@ -68,12 +68,7 @@ struct LpcPinHw {
 pub const LPC_IDENTITY: &[u8] = b"LPC1115 GPIO";
 
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
-static BANKS: [BankInfo; 4] = [
-    BankInfo::new("PIO0"),
-    BankInfo::new("PIO1"),
-    BankInfo::new("PIO2"),
-    BankInfo::new("PIO3"),
-];
+static BANKS: [&str; 4] = ["PIO0", "PIO1", "PIO2", "PIO3"];
 
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
 macro_rules! lpc_pins {
@@ -325,7 +320,7 @@ mod tests {
             assert_eq!(token[3] - b'0', pin.bank.index() as u8);
             assert_eq!(pin.token[5..].parse::<u8>().unwrap(), pin.bit);
 
-            let hw = pin_hw(PinId::new(index as u8));
+            let hw = pin_hw(LPC_PIN_MAP.pin_id(index));
             assert_eq!(hw.bank.id(), pin.bank);
             assert_eq!(hw.bit, pin.bit);
 

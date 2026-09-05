@@ -186,8 +186,8 @@ impl App {
         show_bank_name: bool,
     ) -> iced::widget::Column<'_, Message> {
         let mut column = column![].spacing(2);
-        if show_bank_name && let Some(info) = self.session.bank_info(bank) {
-            column = column.push(text(info.token.clone()).size(14));
+        if show_bank_name && let Some(token) = self.session.bank_token(bank) {
+            column = column.push(text(token.to_owned()).size(14));
         }
         column = column.push(pin_header());
         for (pin, info) in self.session.pins(self.selected_route_key()) {

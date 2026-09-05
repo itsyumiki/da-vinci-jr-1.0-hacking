@@ -70,13 +70,12 @@ impl Firmware {
             },
             DecodedRequest::Help => return self.begin_bulk(packet.id, BulkKind::Help, gpio),
             DecodedRequest::Direction { target, direction } => {
-                self.resolve(map, target).map_or_else(
-                    |error| error,
-                    |target| self.set_direction(map, target, direction, gpio),
-                )
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_direction(map, target, direction, gpio)
+                })
             }
             DecodedRequest::Get { target } => {
-                let Ok(target) = self.resolve(map, target) else {
+                let Some(target) = map.resolve(target) else {
                     return Packet {
                         id: packet.id,
                         body: bad_packet(),
@@ -94,20 +93,23 @@ impl Firmware {
                     return self.begin_bulk(packet.id, BulkKind::Values(target), gpio);
                 }
             }
-            DecodedRequest::Set { target, level } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_level(map, target, level, gpio),
-            ),
-            DecodedRequest::Pullup { target, state } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_pull_up(map, target, state == Toggle::On, gpio),
-            ),
-            DecodedRequest::Listen { target, state } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_listening(map, target, state == Toggle::On, packet.id, gpio),
-            ),
+            DecodedRequest::Set { target, level } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_level(map, target, level, gpio)
+                })
+            }
+            DecodedRequest::Pullup { target, state } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_pull_up(map, target, state == Toggle::On, gpio)
+                })
+            }
+            DecodedRequest::Listen { target, state } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_listening(map, target, state == Toggle::On, packet.id, gpio)
+                })
+            }
             DecodedRequest::Query { target, what } => {
-                let Ok(target) = self.resolve(map, target) else {
+                let Some(target) = map.resolve(target) else {
                     return Packet {
                         id: packet.id,
                         body: bad_packet(),
@@ -135,10 +137,6 @@ impl Firmware {
             id: packet.id,
             body,
         }
-    }
-
-    fn resolve(&self, map: &PinMap, token: &[u8]) -> Result<Target, FirmwareResponse> {
-        map.resolve(token).ok_or_else(bad_packet)
     }
 
     fn begin_bulk<G: GpioHal>(
@@ -176,13 +174,13 @@ impl Firmware {
         if matches!(kind, BulkKind::Map) {
             let body = if next < map.banks().len() {
                 Response::MapBank {
-                    bank: map.banks()[next].token.as_bytes(),
+                    bank: map.banks()[next].as_bytes(),
                 }
             } else if let Some(info) = map.pins().get(next - map.banks().len()) {
                 Response::MapPin {
                     target: info.token.as_bytes(),
                     package_pin: info.package_pin,
-                    bank: map.bank(info.bank).token.as_bytes(),
+                    bank: map.bank(info.bank).as_bytes(),
                     bit: info.bit,
                     capabilities: info.capabilities,
                 }
@@ -204,7 +202,7 @@ impl Firmware {
         };
 
         while next < map.pins().len() {
-            let pin = PinId::new(next as u8);
+            let pin = map.pin_id(next);
             next += 1;
             let info = map.pin(pin);
             if !target_contains(map, target, pin) || !info.capabilities.available() {
@@ -252,7 +250,7 @@ impl Firmware {
         let mut snapshots = [None; MAX_BANKS];
         for offset in 0..pin_count {
             let index = (self.listener_cursor + offset) % pin_count;
-            let pin = PinId::new(index as u8);
+            let pin = map.pin_id(index);
             let PinState::Configured {
                 listener: Some(listener),
                 previous,
@@ -495,8 +493,7 @@ impl Firmware {
         self.bulk = None;
         self.listener_cursor = 0;
         let map = gpio.pin_map();
-        for index in 0..map.pins().len() {
-            let pin = PinId::new(index as u8);
+        for pin in map.pin_ids() {
             let state = self.state_mut(pin);
             if !matches!(state, PinState::Unset) && map.pin(pin).capabilities.input() {
                 gpio.configure(pin, PinMode::Input { pull_up: false });
@@ -562,7 +559,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        gpio::map::{BankId, BankInfo, Capabilities, PinInfo},
+        gpio::map::{BankId, Capabilities, PinInfo},
         sam::{SAM_IDENTITY, SAM_PIN_MAP},
     };
     use da_vinci_protocol::Request;
@@ -570,7 +567,7 @@ mod tests {
     const BANK_0: BankId = BankId::new(0);
     const BANK_1: BankId = BankId::new(1);
 
-    static SYNTH_BANKS: [BankInfo; 2] = [BankInfo::new("PIO0"), BankInfo::new("PORTX")];
+    static SYNTH_BANKS: [&str; 2] = ["PIO0", "PORTX"];
     static SYNTH_PINS: [PinInfo; 4] = [
         PinInfo::new("PIO0_0", Some(1), BANK_0, 0, Capabilities::GPIO),
         PinInfo::new("PIO0_1", Some(2), BANK_0, 1, Capabilities::NONE),
@@ -663,9 +660,12 @@ mod tests {
         assert_eq!(SYNTH_MAP.resolve(b"ALL"), Some(Target::All));
         assert_eq!(
             SYNTH_MAP.resolve(b"PIO0_0"),
-            Some(Target::Pin(PinId::new(0)))
+            Some(Target::Pin(SYNTH_MAP.pin_id(0)))
         );
-        assert_eq!(SYNTH_MAP.resolve(b"PX08"), Some(Target::Pin(PinId::new(3))));
+        assert_eq!(
+            SYNTH_MAP.resolve(b"PX08"),
+            Some(Target::Pin(SYNTH_MAP.pin_id(3)))
+        );
         assert_eq!(SYNTH_MAP.resolve(b"PA00"), None);
     }
 
@@ -701,7 +701,7 @@ mod tests {
                     body: Response::MapPin {
                         target: info.token.as_bytes(),
                         package_pin: info.package_pin,
-                        bank: SYNTH_MAP.bank(info.bank).token.as_bytes(),
+                        bank: SYNTH_MAP.bank(info.bank).as_bytes(),
                         bit: info.bit,
                         capabilities: info.capabilities,
                     },
@@ -799,7 +799,7 @@ mod tests {
             firmware
                 .handle(request(2, Request::Get { target: b"PIO0_0" }), &mut gpio)
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(0), TargetError::Unset)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(0), TargetError::Unset)
         );
 
         firmware.handle(
@@ -865,7 +865,7 @@ mod tests {
 
         assert!(!gpio.pull_ups[0]);
         assert_eq!(
-            firmware.query(PinId::new(0), Query::Pullup),
+            firmware.query(SYNTH_MAP.pin_id(0), Query::Pullup),
             QueryValue::Toggle(Toggle::Off)
         );
     }
@@ -888,7 +888,7 @@ mod tests {
                     &mut gpio,
                 )
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(1), TargetError::Unavailable)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(1), TargetError::Unavailable)
         );
         assert_eq!(
             firmware
@@ -909,7 +909,7 @@ mod tests {
                     &mut gpio,
                 )
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(2), TargetError::Unavailable)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(2), TargetError::Unavailable)
         );
     }
 
@@ -1116,7 +1116,7 @@ mod tests {
             firmware
                 .handle(request(4, Request::Get { target: b"PIO0_0" }), &mut gpio)
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(0), TargetError::Unset)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(0), TargetError::Unset)
         );
     }
 }

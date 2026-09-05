@@ -54,11 +54,6 @@ pub(super) type Request = ProtocolRequest<Target>;
 pub(super) type ResponseError = ProtocolResponseError<PinKey, String>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct BankInfo {
-    pub(super) token: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct PinInfo {
     pub(super) token: String,
     pub(super) package_pin: Option<u16>,
@@ -244,14 +239,14 @@ struct RoutePin {
 
 #[derive(Clone, Debug, Default)]
 struct RouteMap {
-    banks: Vec<BankInfo>,
+    banks: Vec<String>,
     pins: Vec<RoutePin>,
 }
 
 #[derive(Clone, Debug)]
 struct MapBuilder {
     route: RouteKey,
-    banks: Vec<BankInfo>,
+    banks: Vec<String>,
     pins: Vec<PinInfo>,
 }
 
@@ -265,10 +260,10 @@ impl MapBuilder {
     }
 
     fn bank(&mut self, token: String) -> Result<(), String> {
-        if self.banks.iter().any(|bank| bank.token == token) {
+        if self.banks.iter().any(|bank| bank == &token) {
             return Err(format!("Duplicate MAP bank {token}"));
         }
-        self.banks.push(BankInfo { token });
+        self.banks.push(token);
         Ok(())
     }
 
@@ -283,7 +278,7 @@ impl MapBuilder {
         if self.pins.iter().any(|pin| pin.token == token) {
             return Err(format!("Duplicate MAP pin {token}"));
         }
-        let Some(bank_index) = self.banks.iter().position(|bank| bank.token == bank_token) else {
+        let Some(bank_index) = self.banks.iter().position(|bank| bank == &bank_token) else {
             return Err(format!(
                 "MAP pin {token} references unknown bank {bank_token}"
             ));
@@ -390,7 +385,7 @@ impl DeviceSession {
             .as_ref()?
             .banks
             .iter()
-            .position(|bank| bank.token == token)
+            .position(|bank| bank == token)
             .map(|index| BankKey { route, index })
     }
 
@@ -404,13 +399,14 @@ impl DeviceSession {
             .map(|pin| &pin.info)
     }
 
-    pub(super) fn bank_info(&self, bank: BankKey) -> Option<&BankInfo> {
+    pub(super) fn bank_token(&self, bank: BankKey) -> Option<&str> {
         self.routes
             .get(bank.route.0)?
             .map
             .as_ref()?
             .banks
             .get(bank.index)
+            .map(String::as_str)
     }
 
     pub(super) fn pins(&self, route: RouteKey) -> impl Iterator<Item = (PinKey, &PinInfo)> {
@@ -421,12 +417,12 @@ impl DeviceSession {
             .map(move |(index, pin)| (PinKey { route, index }, &pin.info))
     }
 
-    pub(super) fn banks(&self, route: RouteKey) -> impl Iterator<Item = (BankKey, &BankInfo)> {
+    pub(super) fn banks(&self, route: RouteKey) -> impl Iterator<Item = (BankKey, &str)> {
         self.routes[route.0]
             .map
             .iter()
             .flat_map(|map| map.banks.iter().enumerate())
-            .map(move |(index, bank)| (BankKey { route, index }, bank))
+            .map(move |(index, bank)| (BankKey { route, index }, bank.as_str()))
     }
 
     pub(super) fn target_pins(&self, route: RouteKey, target: Target) -> Vec<PinKey> {
@@ -743,7 +739,6 @@ impl DeviceSession {
         banks: Vec<String>,
         pins: Vec<(String, usize, u8, PinCapabilities)>,
     ) {
-        let banks: Vec<_> = banks.into_iter().map(|token| BankInfo { token }).collect();
         let pins = pins
             .into_iter()
             .map(|(token, bank, bit, capabilities)| RoutePin {
@@ -872,8 +867,8 @@ impl DeviceSession {
                 .map(|info| info.token.clone())
                 .ok_or_else(|| "Unknown pin key".into()),
             Target::Bank(bank) if bank.route == route => self
-                .bank_info(bank)
-                .map(|info| info.token.clone())
+                .bank_token(bank)
+                .map(str::to_owned)
                 .ok_or_else(|| "Unknown bank key".into()),
             Target::Pin(_) | Target::Bank(_) => Err("Target belongs to another route".into()),
         }
@@ -1404,9 +1399,7 @@ mod tests {
         let sam = connection.route_key("SAM").unwrap();
         let lpc = connection.route_key("LPC").unwrap();
         connection.routes[sam.0].map = Some(RouteMap {
-            banks: vec![BankInfo {
-                token: "PIOA".into(),
-            }],
+            banks: vec!["PIOA".into()],
             pins: vec![
                 RoutePin {
                     info: PinInfo {
@@ -1439,9 +1432,7 @@ mod tests {
             ],
         });
         connection.routes[lpc.0].map = Some(RouteMap {
-            banks: vec![BankInfo {
-                token: "PIO2".into(),
-            }],
+            banks: vec!["PIO2".into()],
             pins: vec![RoutePin {
                 info: PinInfo {
                     token: "PIO2_3".into(),

@@ -165,12 +165,12 @@ mod tests {
     use super::*;
     use crate::{
         BankId, PinId, PinMap, PinMode,
-        gpio::map::{BankInfo, Capabilities, PinInfo},
+        gpio::map::{Capabilities, PinInfo},
         router::{FrameError, FrameLink},
     };
 
     const BANK: BankId = BankId::new(0);
-    static BANKS: [BankInfo; 1] = [BankInfo::new("PIO2")];
+    static BANKS: [&str; 1] = ["PIO2"];
     static PINS: [PinInfo; 1] = [PinInfo::new(
         "PIO2_3",
         Some(38),

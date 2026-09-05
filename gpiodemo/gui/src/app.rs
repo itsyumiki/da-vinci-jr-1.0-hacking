@@ -514,9 +514,9 @@ impl App {
     fn sync_route_ui(&mut self) {
         let route = self.selected_route_key();
         self.bulk_scopes = std::iter::once(ScopeChoice::all())
-            .chain(self.session.banks(route).map(|(bank, info)| ScopeChoice {
+            .chain(self.session.banks(route).map(|(bank, token)| ScopeChoice {
                 target: RoutedTarget::Bank(bank),
-                label: info.token.clone(),
+                label: token.to_owned(),
             }))
             .collect();
         self.bulk_scope = ScopeChoice::all();
@@ -530,7 +530,7 @@ impl App {
         let discovered: Vec<_> = self
             .session
             .banks(route)
-            .map(|(key, info)| (key, info.token.clone()))
+            .map(|(key, token)| (key, token.to_owned()))
             .collect();
         let Some(specs) = self
             .route_layout

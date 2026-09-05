@@ -1,5 +1,5 @@
 #[cfg(any(test, all(target_arch = "arm", feature = "sam4e8e")))]
-use crate::gpio::map::{BankId, BankInfo, Capabilities, PinInfo, PinMap};
+use crate::gpio::map::{BankId, Capabilities, PinInfo, PinMap};
 
 #[cfg(all(target_arch = "arm", feature = "sam4e8e"))]
 use atsam4_hal::{
@@ -65,13 +65,7 @@ pub(crate) const BANK_E: BankId = SamBank::E.id();
 pub const SAM_IDENTITY: &[u8] = b"SAM4E8E GPIO";
 
 #[cfg(any(test, all(target_arch = "arm", feature = "sam4e8e")))]
-static BANKS: [BankInfo; 5] = [
-    BankInfo::new("PIOA"),
-    BankInfo::new("PIOB"),
-    BankInfo::new("PIOC"),
-    BankInfo::new("PIOD"),
-    BankInfo::new("PIOE"),
-];
+static BANKS: [&str; 5] = ["PIOA", "PIOB", "PIOC", "PIOD", "PIOE"];
 
 #[cfg(any(test, all(target_arch = "arm", feature = "sam4e8e")))]
 static PINS: [PinInfo; 117] = [
@@ -351,7 +345,7 @@ mod tests {
     fn map_preserves_native_names_package_pins_and_reservations() {
         assert_eq!(SAM_PIN_MAP.banks().len(), 5);
         assert_eq!(SAM_PIN_MAP.pins().len(), 117);
-        assert_eq!(SAM_PIN_MAP.bank(BANK_C).token, "PIOC");
+        assert_eq!(SAM_PIN_MAP.bank(BANK_C), "PIOC");
 
         let Target::Pin(pb12) = SAM_PIN_MAP.resolve(b"PB12").unwrap() else {
             panic!("PB12 must resolve to a pin");
