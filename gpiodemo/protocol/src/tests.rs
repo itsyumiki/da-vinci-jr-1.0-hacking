@@ -538,6 +538,10 @@ fn packet_ids_remain_decimal_but_numeric_gpio_targets_are_rejected() {
     assert_eq!(RequestId::new(1000), None);
     assert_eq!(RequestId::new(1).unwrap().slot(), 0);
     assert_eq!(RequestId::new(999).unwrap().slot(), RequestId::COUNT - 1);
+    assert_eq!(
+        core::mem::size_of::<Option<RequestId>>(),
+        core::mem::size_of::<RequestId>()
+    );
     assert!(decoded_request(b"000 SAM HAI").is_err());
     assert_eq!(
         decoded_request(b"9 SAM GET PE05 OK?"),
