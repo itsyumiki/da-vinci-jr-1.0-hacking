@@ -981,7 +981,7 @@ mod tests {
             vec!["GPIOX".into(), "GPIOY".into()],
             vec![
                 ("X0".into(), 0, 0, PinCapabilities::INPUT_PULLUP),
-                ("Y7".into(), 1, 7, PinCapabilities::new(false, true, false)),
+                ("Y7".into(), 1, 7, PinCapabilities::OUTPUT),
             ],
         );
 

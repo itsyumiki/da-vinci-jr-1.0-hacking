@@ -415,10 +415,7 @@ mod tests {
             pin_modes(PinCapabilities::INPUT_PULLUP),
             [Mode::Input, Mode::InputPullup]
         );
-        assert_eq!(
-            pin_modes(PinCapabilities::new(false, true, false)),
-            [Mode::Output]
-        );
+        assert_eq!(pin_modes(PinCapabilities::OUTPUT), [Mode::Output]);
         assert_eq!(pin_modes(PinCapabilities::GPIO), MODES);
     }
 }

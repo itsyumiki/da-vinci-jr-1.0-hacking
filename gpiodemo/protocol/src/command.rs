@@ -99,16 +99,9 @@ impl PinCapabilities {
 
     pub const NONE: Self = Self(0);
     pub const INPUT: Self = Self(Self::INPUT_BIT);
+    pub const OUTPUT: Self = Self(Self::OUTPUT_BIT);
     pub const INPUT_PULLUP: Self = Self(Self::INPUT_BIT | Self::PULL_UP_BIT);
     pub const GPIO: Self = Self(Self::INPUT_BIT | Self::OUTPUT_BIT | Self::PULL_UP_BIT);
-
-    pub const fn new(input: bool, output: bool, pull_up: bool) -> Self {
-        Self(
-            (if input { Self::INPUT_BIT } else { 0 })
-                | (if output { Self::OUTPUT_BIT } else { 0 })
-                | (if pull_up { Self::PULL_UP_BIT } else { 0 }),
-        )
-    }
 
     pub const fn from_bits(bits: u8) -> Option<Self> {
         if bits <= Self::GPIO.0 {
