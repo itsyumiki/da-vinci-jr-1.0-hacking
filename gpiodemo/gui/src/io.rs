@@ -228,11 +228,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             Ok(count) => {
                 for &byte in &buffer[..count] {
                     match state.reader.push(byte) {
-                        Ok(Some(line)) => {
-                            let line = Frame::try_from(line)
-                                .expect("line buffer enforces protocol frame capacity");
-                            route_line(line, &events, &mut state);
-                        }
+                        Ok(Some(frame)) => route_line(frame, &events, &mut state),
                         Ok(None) => {}
                         Err(LineError::TooLong) => {
                             let _ = events.send(IoEvent::Error(format!(

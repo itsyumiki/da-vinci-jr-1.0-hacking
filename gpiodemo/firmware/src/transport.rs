@@ -109,15 +109,7 @@ impl FramedTransport {
     pub fn next_frame(&mut self) -> Result<Option<Frame>, LineError> {
         while let Some(byte) = self.rx.pop() {
             match self.line.push(byte) {
-                Ok(Some(line)) => {
-                    let mut bytes = [0; MAX_PACKET_LEN];
-                    bytes[..line.len()].copy_from_slice(line);
-                    bytes[line.len()] = b'\n';
-                    return Ok(Some(
-                        Frame::try_from(&bytes[..line.len() + 1])
-                            .expect("line buffer enforces protocol frame capacity"),
-                    ));
-                }
+                Ok(Some(frame)) => return Ok(Some(frame)),
                 Ok(None) => {}
                 Err(error) => return Err(error),
             }

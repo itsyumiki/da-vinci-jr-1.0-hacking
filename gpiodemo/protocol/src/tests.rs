@@ -57,11 +57,18 @@ fn line_buffer_frames_and_recovers_after_overflow() {
     let mut seen = false;
     for &byte in b"\r001 SAM HAI\r\n" {
         if let Some(line) = buffer.push(byte).unwrap() {
-            assert_eq!(line, b"001 SAM HAI");
+            assert_eq!(line.as_ref(), b"001 SAM HAI\n");
             seen = true;
         }
     }
     assert!(seen);
+
+    for _ in 0..MAX_PACKET_LEN - 1 {
+        assert_eq!(buffer.push(b'x'), Ok(None));
+    }
+    let max_frame = buffer.push(b'\n').unwrap().unwrap();
+    assert_eq!(max_frame.as_ref().len(), MAX_PACKET_LEN);
+    assert_eq!(max_frame.as_ref()[MAX_PACKET_LEN - 1], b'\n');
 
     for _ in 0..MAX_PACKET_LEN - 1 {
         assert_eq!(buffer.push(b'x'), Ok(None));
@@ -72,7 +79,7 @@ fn line_buffer_frames_and_recovers_after_overflow() {
 
     for &byte in b"008 SAM HII <3\n" {
         if let Some(line) = buffer.push(byte).unwrap() {
-            assert_eq!(line, b"008 SAM HII <3");
+            assert_eq!(line.as_ref(), b"008 SAM HII <3\n");
         }
     }
 }

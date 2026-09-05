@@ -73,15 +73,22 @@ impl LineBuffer {
         self.discarding = false;
     }
 
-    pub fn push(&mut self, byte: u8) -> Result<Option<&[u8]>, LineError> {
+    pub fn push(&mut self, byte: u8) -> Result<Option<Frame>, LineError> {
         if byte == b'\r' {
             return Ok(None);
         }
         if byte == b'\n' {
-            let line = (!self.discarding && self.len != 0).then_some(&self.bytes[..self.len]);
+            if self.discarding || self.len == 0 {
+                self.len = 0;
+                self.discarding = false;
+                return Ok(None);
+            }
+            self.bytes[self.len] = b'\n';
+            let len = self.len + 1;
+            let bytes = core::mem::replace(&mut self.bytes, [0; MAX_PACKET_LEN]);
             self.len = 0;
             self.discarding = false;
-            return Ok(line);
+            return Ok(Some(Frame::from_parts(bytes, len)));
         }
         if self.discarding {
             return Ok(None);
