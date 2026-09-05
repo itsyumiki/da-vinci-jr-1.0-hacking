@@ -1,4 +1,4 @@
-name: Build firmware
+name: Build
 
 on:
   workflow_dispatch:
@@ -7,16 +7,46 @@ permissions:
   contents: read
 
 jobs:
+  gui-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: gpiodemo -> target
+
+      - name: Build desktop controller
+        run: cargo build --manifest-path gpiodemo/Cargo.toml -p da-vinci-gui --release
+
+      - name: Upload desktop controller
+        uses: actions/upload-artifact@v7
+        with:
+          name: da-vinci-gui-macos
+          path: gpiodemo/target/release/da-vinci-gui
+          if-no-files-found: error
+
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+        run: |
+          sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+          rustup target add thumbv7em-none-eabi thumbv6m-none-eabi
 
-      - name: Build firmware
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: gpiodemo -> target
+
+      - name: Build SAM4E8E firmware
         run: just build
+
+      - name: Build LPC1115 firmware
+        run: just build-lpc
 
       - name: Set artifact timestamp
         id: timestamp
@@ -37,4 +67,20 @@ jobs:
         with:
           name: sam4e8e-firmware-bin-${{ steps.timestamp.outputs.value }}
           path: build/firmware.bin
+          if-no-files-found: error
+
+      - name: Upload LPC1115 firmware bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: lpc1115-firmware-${{ steps.timestamp.outputs.value }}
+          path: |
+            build/lpc1115.elf
+            build/lpc1115.bin
+          if-no-files-found: error
+
+      - name: Upload LPC1115 firmware binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: lpc1115-firmware-bin-${{ steps.timestamp.outputs.value }}
+          path: build/lpc1115.bin
           if-no-files-found: error

@@ -5,7 +5,7 @@ This folder contains example firmware builds that you can download and flash.
 The available examples are:
 
 - [Blink](blink.bin) ([source](https://github.com/itsyumiki/da-vinci-jr-1.0-hacking/tree/bca9b8ce5da0e177e398c52942f69a1dbfcbf0b6))
-- [GPIO controller](gpiodemo.bin) ([source](../gpiodemo/slave))
+- [GPIO controller](gpiodemo.bin) ([source](../gpiodemo))
 
 > **How to flash?**
 >
@@ -39,6 +39,6 @@ hello world 11, pd8 is low
 
 ## GPIO controller
 
-The GPIO controller firmware serves the request-ID protocol used by `gpiodemo/master` over USB CDC. It supports pin direction, pull-up configuration, reads, writes, change listeners, state queries, and reset.
+The GPIO controller firmware serves the request-ID protocol used by the Rust desktop controller over USB CDC. It supports pin direction, pull-up configuration, reads, writes, change listeners, state queries, and reset.
 
-> Its source code and protocol documentation are available [here](../gpiodemo/slave).
+> Its source code and protocol documentation are available [here](../gpiodemo).

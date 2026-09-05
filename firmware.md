@@ -58,7 +58,7 @@ Instead, you can use:
 
 - [Atmel/Microchip Studio](https://www.microchip.com/en-us/tools-resources/develop/microchip-studio) if you want a full and easier IDE experience. Windows only, and I couldn't get it to run under Wine due to Visual Studio Shell requirements.
 - [Atmel Software Framework](https://github.com/avrxml/asf) if you want to use a more barebones approach. You need to write your own Makefile etc for this. I just asked Claude to scrap some things together, but its too ugly to commit, and I might commit it only when I have a better understanding of the toolchain and when I rewrite it myself.
-- The repository now includes a [SAM4E8E GPIO controller firmware](gpiodemo/slave/README.md) using the board's USB CDC connection for host communication.
+- The repository now includes a [Rust SAM4E8E GPIO controller](gpiodemo/README.md) using the board's USB CDC connection for host communication.
 
 ### Unofficial Firmware
 

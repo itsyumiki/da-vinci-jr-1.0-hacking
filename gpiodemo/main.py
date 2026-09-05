@@ -1,3 +1,0 @@
-import master
-
-master.main()
