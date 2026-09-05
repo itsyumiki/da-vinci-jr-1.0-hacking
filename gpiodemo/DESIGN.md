@@ -56,20 +56,20 @@ Iced cannot provide literal `ttk` widgets. The goal is visual and behavioral par
 
 Use these as reference values rather than mandatory one-off constants scattered through the code:
 
-| Role | Reference |
-|---|---|
-| Window background | `#242424` |
-| Main panel background | `#2B2B2B` |
-| Raised/selected neutral | `#333333` |
-| Input background | `#343638` |
-| Input border | `#565B5E` |
-| Hairline/divider | `#474747` |
-| Main text | `#DCE4EE` |
-| Muted/disabled text | approximately `#B0B0B0` |
-| HIGH state | green, approximately `#3DDC97` |
-| LOW state | medium/dark gray |
-| Unknown/unset state | slightly lighter gray than the panel |
-| Destructive text | red |
+| Role                    | Reference                            |
+| ----------------------- | ------------------------------------ |
+| Window background       | `#242424`                            |
+| Main panel background   | `#2B2B2B`                            |
+| Raised/selected neutral | `#333333`                            |
+| Input background        | `#343638`                            |
+| Input border            | `#565B5E`                            |
+| Hairline/divider        | `#474747`                            |
+| Main text               | `#DCE4EE`                            |
+| Muted/disabled text     | approximately `#B0B0B0`              |
+| HIGH state              | green, approximately `#3DDC97`       |
+| LOW state               | medium/dark gray                     |
+| Unknown/unset state     | slightly lighter gray than the panel |
+| Destructive text        | red                                  |
 
 Normal action buttons should stay neutral. The most visually obvious color in the pin table should be the **level state**, not the controls.
 

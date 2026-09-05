@@ -39,11 +39,11 @@ The current PC-connected node is named `SAM`.
 
 GPIO commands that take a target accept one of three forms:
 
-| Form | Example | Meaning |
-| --- | --- | --- |
-| Pin | `PA00` | One GPIO pin |
-| Bank | `PIOA` | One GPIO bank |
-| All | `ALL` | Every exposed GPIO pin |
+| Form | Example | Meaning                |
+| ---- | ------- | ---------------------- |
+| Pin  | `PA00`  | One GPIO pin           |
+| Bank | `PIOA`  | One GPIO bank          |
+| All  | `ALL`   | Every exposed GPIO pin |
 
 The current SAM node exposes these native names:
 
@@ -59,18 +59,18 @@ Pins begin in the `UNSET` state. `DIR` initializes a pin. Commands whose meaning
 
 ## Requests
 
-| Command | Form | Meaning |
-| --- | --- | --- |
-| Hello | `HAI` | Check that the addressed node is responding. |
-| Status | `HRU` | Ask the node to identify itself. |
-| Map | `MAP` | Stream the addressed node's GPIO bank and pin metadata. |
-| Direction | `DIR <target> IN OK?` / `DIR <target> OUT OK?` | Configure input or output direction. |
-| Read | `GET <target> OK?` | Read initialized pins in the selected scope. |
-| Write | `SET <target> LOW OK?` / `SET <target> HIGH OK?` | Drive initialized output pins. |
-| Pull-up | `PLL <target> OFF OK?` / `PLL <target> ON OK?` | Turn input pull-up off or on. |
-| Listen | `LSN <target> OFF OK?` / `LSN <target> ON OK?` | Stop or start change notifications. |
-| Query | `WYD <target> DIR` / `WYD <target> PLL` / `WYD <target> LSN` | Query direction, pull-up, or listener state. |
-| Reset | `BYE` | Reset GPIO/listener state for the node. |
+| Command   | Form                                                         | Meaning                                                 |
+| --------- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| Hello     | `HAI`                                                        | Check that the addressed node is responding.            |
+| Status    | `HRU`                                                        | Ask the node to identify itself.                        |
+| Map       | `MAP`                                                        | Stream the addressed node's GPIO bank and pin metadata. |
+| Direction | `DIR <target> IN OK?` / `DIR <target> OUT OK?`               | Configure input or output direction.                    |
+| Read      | `GET <target> OK?`                                           | Read initialized pins in the selected scope.            |
+| Write     | `SET <target> LOW OK?` / `SET <target> HIGH OK?`             | Drive initialized output pins.                          |
+| Pull-up   | `PLL <target> OFF OK?` / `PLL <target> ON OK?`               | Turn input pull-up off or on.                           |
+| Listen    | `LSN <target> OFF OK?` / `LSN <target> ON OK?`               | Stop or start change notifications.                     |
+| Query     | `WYD <target> DIR` / `WYD <target> PLL` / `WYD <target> LSN` | Query direction, pull-up, or listener state.            |
+| Reset     | `BYE`                                                        | Reset GPIO/listener state for the node.                 |
 
 ### Command ordering
 
@@ -82,25 +82,25 @@ Pins begin in the `UNSET` state. `DIR` initializes a pin. Commands whose meaning
 
 All successful and error responses keep the original request ID and name the responding source node.
 
-| Response | Meaning |
-| --- | --- |
-| `HII <3` | Reply to `HAI`. |
-| `IAM SAM4E8E GPIO <3` | Current SAM status reply to `HRU`. |
-| `MAP BANK <bank> <3` | One bank record in a `MAP` stream. |
-| `MAP PIN <target> <package-pin|-> <bank> <bit> <capabilities> <3` | One pin record in a `MAP` stream. |
-| `OKA <3` | Successful acknowledgement or grouped-response terminator. |
-| `HYG <pin> LOW <3` / `HYG <pin> HIGH <3` | Pin value or listener event. |
-| `HYG <pin> DIR <value> <3` | Direction state. Value is `IN`, `OUT`, or `UNSET`. |
-| `HYG <pin> PLL <value> <3` | Pull-up state. Value is `ON`, `OFF`, or `UNSET`. |
-| `HYG <pin> LSN <value> <3` | Listener state. Value is `ON`, `OFF`, or `UNSET`. |
-| `UMM BAD_PACKET <3` | A known request form was malformed. |
-| `UMM <pin> UNSET <3` | An individual operation required an initialized pin. |
-| `UMM <pin> UNAVAILABLE <3` | An individual operation addressed an unavailable/reserved pin. |
-| `UMM NO_ROUTE <destination> <3` | This node has no configured path to the requested destination. |
-| `UMM ROUTE_BUSY <next-hop> <3` | The bounded queue for the selected next hop cannot accept another frame. |
-| `UMM ROUTE_DOWN <next-hop> <3` | The selected next-hop link reported a hard failure. |
-| `IDK <3` | The command name is unknown. |
-| `CYA <3` | Reply to `BYE`. |
+| Response                                                        | Meaning                                                                  |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `HII <3`                                                        | Reply to `HAI`.                                                          |
+| `IAM SAM4E8E GPIO <3`                                           | Current SAM status reply to `HRU`.                                       |
+| `MAP BANK <bank> <3`                                            | One bank record in a `MAP` stream.                                       |
+| `MAP PIN <target> <package-pin> <bank> <bit> <capabilities> <3` | One pin record in a `MAP` stream.                                        |
+| `OKA <3`                                                        | Successful acknowledgement or grouped-response terminator.               |
+| `HYG <pin> LOW <3` / `HYG <pin> HIGH <3`                        | Pin value or listener event.                                             |
+| `HYG <pin> DIR <value> <3`                                      | Direction state. Value is `IN`, `OUT`, or `UNSET`.                       |
+| `HYG <pin> PLL <value> <3`                                      | Pull-up state. Value is `ON`, `OFF`, or `UNSET`.                         |
+| `HYG <pin> LSN <value> <3`                                      | Listener state. Value is `ON`, `OFF`, or `UNSET`.                        |
+| `UMM BAD_PACKET <3`                                             | A known request form was malformed.                                      |
+| `UMM <pin> UNSET <3`                                            | An individual operation required an initialized pin.                     |
+| `UMM <pin> UNAVAILABLE <3`                                      | An individual operation addressed an unavailable/reserved pin.           |
+| `UMM NO_ROUTE <destination> <3`                                 | This node has no configured path to the requested destination.           |
+| `UMM ROUTE_BUSY <next-hop> <3`                                  | The bounded queue for the selected next hop cannot accept another frame. |
+| `UMM ROUTE_DOWN <next-hop> <3`                                  | The selected next-hop link reported a hard failure.                      |
+| `IDK <3`                                                        | The command name is unknown.                                             |
+| `CYA <3`                                                        | Reply to `BYE`.                                                          |
 
 If packet framing or the packet ID is malformed before a usable request ID exists, no correlated response is possible.
 
