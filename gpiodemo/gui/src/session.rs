@@ -996,13 +996,14 @@ impl DeviceSession {
                 Ok(DeviceEvent::PinState { pin, what, value })
             }
             WireResponse::Error(error) => {
-                let error = match self.resolve_error(pending.route, error) {
-                    Ok(error) => error,
-                    Err(error) => {
-                        self.retire(id);
-                        return Err(error);
-                    }
-                };
+                let error =
+                    match error.try_map(|target| self.resolve_pin(pending.route, &target), Ok) {
+                        Ok(error) => error,
+                        Err(error) => {
+                            self.retire(id);
+                            return Err(error);
+                        }
+                    };
                 self.retire(id);
                 Ok(DeviceEvent::DeviceError {
                     route: pending.route,
@@ -1043,14 +1044,6 @@ impl DeviceSession {
                 self.route_name(route)
             )
         })
-    }
-
-    fn resolve_error(
-        &self,
-        route: RouteKey,
-        error: ProtocolResponseError<String, String>,
-    ) -> Result<ResponseError, String> {
-        error.try_map(|target| self.resolve_pin(route, &target), Ok)
     }
 
     fn ack(&mut self, id: RequestId, pending: Pending) -> Result<DeviceEvent, String> {

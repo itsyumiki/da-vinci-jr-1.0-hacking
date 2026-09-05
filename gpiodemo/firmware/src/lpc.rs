@@ -65,32 +65,6 @@ struct LpcPinHw {
     pad_kind: LpcPadKind,
 }
 
-#[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
-impl LpcPinHw {
-    const fn bank(self) -> LpcBank {
-        self.bank
-    }
-
-    const fn bit(self) -> u8 {
-        self.bit
-    }
-
-    #[cfg(all(target_arch = "arm", feature = "lpc1115"))]
-    const fn iocon_offset(self) -> u8 {
-        self.iocon_offset
-    }
-
-    #[cfg(all(target_arch = "arm", feature = "lpc1115"))]
-    const fn gpio_function(self) -> u8 {
-        self.gpio_function
-    }
-
-    #[cfg(all(target_arch = "arm", feature = "lpc1115"))]
-    const fn pad_kind(self) -> LpcPadKind {
-        self.pad_kind
-    }
-}
-
 pub const LPC_IDENTITY: &[u8] = b"LPC1115 GPIO";
 
 #[cfg(any(test, all(target_arch = "arm", feature = "lpc1115")))]
@@ -226,21 +200,21 @@ impl LpcGpio {
 
     fn configure_pad(&self, pin: PinId, pull_up: bool) {
         let hw = pin_hw(pin);
-        let offset = hw.iocon_offset() as usize;
+        let offset = hw.iocon_offset as usize;
         // SAFETY: LpcGpio owns IOCON for its lifetime. Each PinId comes from LPC_PIN_MAP and has
         // matching hardware metadata. The PAC exposes IOCON as named registers rather than an
         // indexable array, so volatile pointer access is required for metadata-driven dispatch.
         unsafe {
             let register = (pac::IOCON::ptr() as *mut u8).add(offset).cast::<u32>();
             let current = read_volatile(register);
-            let next = match hw.pad_kind() {
+            let next = match hw.pad_kind {
                 LpcPadKind::I2cOpenDrain => (current & !(0x07 | (0x03 << 8))) | (1 << 8),
                 LpcPadKind::Standard | LpcPadKind::Analog => {
                     let mode = if pull_up { 2 } else { 0 };
                     let mut bits = (current & !(0x07 | (0x03 << 3)))
-                        | u32::from(hw.gpio_function())
+                        | u32::from(hw.gpio_function)
                         | ((mode as u32) << 3);
-                    if hw.pad_kind() == LpcPadKind::Analog {
+                    if hw.pad_kind == LpcPadKind::Analog {
                         bits |= 1 << 7;
                     }
                     bits
@@ -259,20 +233,20 @@ impl GpioHal for LpcGpio {
 
     fn configure(&mut self, pin: PinId, mode: PinMode) {
         let hw = pin_hw(pin);
-        let mask = 1u32 << hw.bit();
+        let mask = 1u32 << hw.bit;
         match mode {
             PinMode::Input { pull_up } => {
                 self.configure_pad(pin, pull_up);
                 // DIR is a whole-bank bitmap in this PAC, so changing one pin requires a masked
                 // raw update while preserving neighbouring direction bits.
-                self.registers(hw.bank())
+                self.registers(hw.bank)
                     .dir
                     .modify(|r, w| unsafe { w.bits(r.bits() & !mask) });
             }
             PinMode::Output { initial } => {
                 self.configure_pad(pin, false);
                 self.write(pin, initial);
-                self.registers(hw.bank())
+                self.registers(hw.bank)
                     .dir
                     .modify(|r, w| unsafe { w.bits(r.bits() | mask) });
             }
@@ -281,9 +255,9 @@ impl GpioHal for LpcGpio {
 
     fn write(&mut self, pin: PinId, level: Level) {
         let hw = pin_hw(pin);
-        let mask = 1u32 << hw.bit();
+        let mask = 1u32 << hw.bit;
         // DATA is likewise exposed as a whole-bank bitmap by this PAC.
-        self.registers(hw.bank()).data.modify(|r, w| unsafe {
+        self.registers(hw.bank).data.modify(|r, w| unsafe {
             w.bits(match level {
                 Level::Low => r.bits() & !mask,
                 Level::High => r.bits() | mask,
@@ -352,8 +326,8 @@ mod tests {
             assert_eq!(pin.token[5..].parse::<u8>().unwrap(), pin.bit);
 
             let hw = pin_hw(PinId::new(index as u8));
-            assert_eq!(hw.bank().id(), pin.bank);
-            assert_eq!(hw.bit(), pin.bit);
+            assert_eq!(hw.bank.id(), pin.bank);
+            assert_eq!(hw.bit, pin.bit);
 
             let package_pin = pin.package_pin.unwrap() as usize;
             assert!((1..=48).contains(&package_pin));

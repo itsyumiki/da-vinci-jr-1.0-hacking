@@ -72,7 +72,7 @@ impl<'route, const N: usize> Node<'route, N> {
             return false;
         };
         self.upstream
-            .enqueue(frame.as_ref())
+            .enqueue(frame)
             .expect("routed frame fits idle upstream transport");
         true
     }
@@ -141,7 +141,7 @@ fn queue_response<T: AsRef<[u8]>, D: AsRef<[u8]>>(
     })
     .expect("protocol response always fits fixed packet buffer");
     transport
-        .enqueue(frame.as_ref())
+        .enqueue(frame)
         .expect("response queued only while upstream transport is idle");
 }
 

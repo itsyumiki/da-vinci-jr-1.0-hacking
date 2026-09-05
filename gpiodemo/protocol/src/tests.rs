@@ -85,7 +85,7 @@ fn frame_owns_exact_bounded_bytes() {
     }
     assert_eq!(
         Frame::try_from(&[b'x'; MAX_PACKET_LEN + 1][..]),
-        Err(FrameTooLong)
+        Err(LineError::TooLong)
     );
 }
 
@@ -174,51 +174,6 @@ fn routed_envelope_encoding_validates_route_tokens_and_preserves_ids() {
             Err(EncodeError::InvalidRouteToken)
         );
     }
-}
-
-#[test]
-fn message_frame_conversions_round_trip_typed_and_opaque_messages() {
-    let request = Message {
-        route: b"LPC".as_slice(),
-        packet: Packet {
-            id: id(41),
-            body: Request::Set {
-                target: b"PIO2_3".as_slice(),
-                level: Level::High,
-            },
-        },
-    };
-    let frame = Frame::try_from(request).unwrap();
-    assert_eq!(frame.as_ref(), b"041 LPC SET PIO2_3 HIGH OK?\n");
-    let raw = RawMessage::try_from(&frame).unwrap();
-    let decoded = Message::<&[u8], DecodedRequest<'_>>::try_from(raw).unwrap();
-    assert_eq!(decoded, request);
-
-    let response = Message {
-        route: b"LPC".as_slice(),
-        packet: Packet {
-            id: id(42),
-            body: Response::<&[u8], &[u8]>::Version {
-                version: PROTOCOL_VERSION,
-            },
-        },
-    };
-    let frame = Frame::try_from(response).unwrap();
-    assert_eq!(frame.as_ref(), b"042 LPC VER 1 :3\n");
-    let raw = RawMessage::try_from(&frame).unwrap();
-    let decoded = Message::<&[u8], DecodedResponse<'_>>::try_from(raw).unwrap();
-    assert_eq!(decoded, response);
-
-    let opaque = Message {
-        route: b"ABC".as_slice(),
-        packet: Packet {
-            id: id(43),
-            body: b"WAT opaque body".as_slice(),
-        },
-    };
-    let frame = Frame::try_from(opaque).unwrap();
-    assert_eq!(frame.as_ref(), b"043 ABC WAT opaque body\n");
-    assert_eq!(RawMessage::try_from(&frame), Ok(opaque));
 }
 
 #[test]

@@ -29,16 +29,13 @@ impl<B> FramedLink<B> {
 
 impl<B: NonBlockingBytes> FrameLink for FramedLink<B> {
     fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError> {
-        if frame.len() > MAX_PACKET_LEN {
-            return Err(FrameError::InvalidFrame);
-        }
+        let frame = Frame::try_from(frame).map_err(|_| FrameError::InvalidFrame)?;
         self.transport
             .poll(&mut self.bytes)
             .map_err(FrameError::from)?;
-        self.transport.enqueue(frame).map_err(|error| match error {
-            QueueError::Busy => FrameError::WouldBlock,
-            QueueError::TooLong => FrameError::InvalidFrame,
-        })?;
+        self.transport
+            .enqueue(frame)
+            .map_err(|QueueError::Busy| FrameError::WouldBlock)?;
         self.transport
             .poll(&mut self.bytes)
             .map_err(FrameError::from)
@@ -66,14 +63,12 @@ impl From<ByteError> for FrameError {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QueueError {
     Busy,
-    TooLong,
 }
 
 pub struct FramedTransport {
     rx: RingBuffer,
     line: LineBuffer,
-    tx: [u8; MAX_PACKET_LEN],
-    tx_len: usize,
+    tx: Option<Frame>,
     tx_offset: usize,
 }
 
@@ -88,8 +83,7 @@ impl FramedTransport {
         Self {
             rx: RingBuffer::new(),
             line: LineBuffer::new(),
-            tx: [0; MAX_PACKET_LEN],
-            tx_len: 0,
+            tx: None,
             tx_offset: 0,
         }
     }
@@ -100,18 +94,14 @@ impl FramedTransport {
     }
 
     pub fn tx_idle(&self) -> bool {
-        self.tx_len == 0
+        self.tx.is_none()
     }
 
-    pub fn enqueue(&mut self, frame: &[u8]) -> Result<(), QueueError> {
-        if !self.tx_idle() {
+    pub fn enqueue(&mut self, frame: Frame) -> Result<(), QueueError> {
+        if self.tx.is_some() {
             return Err(QueueError::Busy);
         }
-        if frame.len() > MAX_PACKET_LEN {
-            return Err(QueueError::TooLong);
-        }
-        self.tx[..frame.len()].copy_from_slice(frame);
-        self.tx_len = frame.len();
+        self.tx = Some(frame);
         self.tx_offset = 0;
         Ok(())
     }
@@ -153,16 +143,18 @@ impl FramedTransport {
     }
 
     fn flush<B: NonBlockingBytes>(&mut self, bytes: &mut B) -> Result<(), ByteError> {
-        if self.tx_idle() {
+        let Some(frame) = self.tx.as_ref() else {
             return Ok(());
-        }
-        match bytes.try_write(&self.tx[self.tx_offset..self.tx_len]) {
+        };
+        let len = frame.as_ref().len();
+        let result = bytes.try_write(&frame.as_ref()[self.tx_offset..]);
+        match result {
             Ok(0) | Err(ByteError::WouldBlock) => Ok(()),
             Ok(written) => {
-                debug_assert!(self.tx_offset + written <= self.tx_len);
+                debug_assert!(self.tx_offset + written <= len);
                 self.tx_offset += written;
-                if self.tx_offset == self.tx_len {
-                    self.tx_len = 0;
+                if self.tx_offset == len {
+                    self.tx = None;
                     self.tx_offset = 0;
                 }
                 Ok(())
@@ -284,7 +276,9 @@ mod tests {
         let mut bytes = FakeBytes::new([]);
         bytes.write_limit = 3;
         let mut transport = FramedTransport::new();
-        transport.enqueue(b"001 SAM HII <3\n").unwrap();
+        transport
+            .enqueue(Frame::try_from(b"001 SAM HII <3\n".as_slice()).unwrap())
+            .unwrap();
 
         transport.poll(&mut bytes).unwrap();
         bytes.write_result = Some(ByteError::WouldBlock);
@@ -301,7 +295,9 @@ mod tests {
         let mut bytes = FakeBytes::new([Ok(Vec::new()), Err(ByteError::WouldBlock)]);
         bytes.write_limit = 0;
         let mut transport = FramedTransport::new();
-        transport.enqueue(b"frame\n").unwrap();
+        transport
+            .enqueue(Frame::try_from(b"frame\n".as_slice()).unwrap())
+            .unwrap();
 
         assert_eq!(transport.poll(&mut bytes), Ok(()));
         assert_eq!(transport.poll(&mut bytes), Ok(()));
@@ -327,11 +323,13 @@ mod tests {
     fn transmit_queue_is_fixed_to_one_complete_frame() {
         let mut transport = FramedTransport::new();
         assert_eq!(
-            transport.enqueue(&[b'x'; MAX_PACKET_LEN + 1]),
-            Err(QueueError::TooLong)
+            transport.enqueue(Frame::try_from(b"one\n".as_slice()).unwrap()),
+            Ok(())
         );
-        assert_eq!(transport.enqueue(b"one\n"), Ok(()));
-        assert_eq!(transport.enqueue(b"two\n"), Err(QueueError::Busy));
+        assert_eq!(
+            transport.enqueue(Frame::try_from(b"two\n".as_slice()).unwrap()),
+            Err(QueueError::Busy)
+        );
     }
 }
 

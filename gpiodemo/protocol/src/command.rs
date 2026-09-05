@@ -220,40 +220,6 @@ pub enum Request<T> {
 }
 
 impl<T> Request<T> {
-    pub fn map_target<U>(self, map: impl FnOnce(T) -> U) -> Request<U> {
-        match self {
-            Self::Hello => Request::Hello,
-            Self::Status => Request::Status,
-            Self::Map => Request::Map,
-            Self::Direction { target, direction } => Request::Direction {
-                target: map(target),
-                direction,
-            },
-            Self::Get { target } => Request::Get {
-                target: map(target),
-            },
-            Self::Set { target, level } => Request::Set {
-                target: map(target),
-                level,
-            },
-            Self::Pullup { target, state } => Request::Pullup {
-                target: map(target),
-                state,
-            },
-            Self::Listen { target, state } => Request::Listen {
-                target: map(target),
-                state,
-            },
-            Self::Query { target, what } => Request::Query {
-                target: map(target),
-                what,
-            },
-            Self::Bye => Request::Bye,
-            Self::Version => Request::Version,
-            Self::Help => Request::Help,
-        }
-    }
-
     pub fn try_map_target<U, E>(
         self,
         map: impl FnOnce(T) -> Result<U, E>,
