@@ -19,10 +19,16 @@ New pinouts to sync later:
 - PIO1_10 reflow fan
 - PIO0_4 - nfc 6
 - PIO0_5 - nfc 5
+- PIO3_0 - nfc 4
+- PIO3_1 - nfc 3
 - PIO0_9 - heater
 - PIO2_5 - hotend fan
 - PIO2_10 - D18 led
--
+
+- PD10 - distance
+- PD27 - bottom lamp
+- PA3 - SDA
+- PA4 - SCL
 
 - PC8 - lcd 5
 - PC7 - lcd 14
