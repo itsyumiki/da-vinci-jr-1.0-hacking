@@ -96,23 +96,23 @@ General pinout: [tb62269ftg-pinout.md](pinouts/tb62269ftg-pinout.md)
 A 32 Mbit (4MB) CMOS serial NOR flash chip with a Serial Peripheral Interface (3-wire bus: clock, serial data in, serial data out), usable in single or dual output mode.
 
 It has:
-
-- **SPI connection** with a max clock speed of 86MHz (80MHz in Dual Output mode)
-
-Refer to the [Macronix MX25L3206E Datasheet](../SOURCES.md#datasheet-macronix-mx25l3206e) for more information.
+  
+  - **SPI connection** with a max clock speed of 86MHz (80MHz in Dual Output mode)
+  
+  Refer to the [Macronix MX25L3206E Datasheet](../SOURCES.md#datasheet-macronix-mx25l3206e) for more information.
 
 ### Pinout
 
 | Pin | Name    | Description               | MCU  | Verified? |
 | --- | ------- | ------------------------- | ---- | --------- |
-| 01  | CS#     | Chip Select               |      | ❌        |
-| 02  | SI/SIO0 | Serial Data Input         |      | ❌        |
-| 03  | SO/SIO1 | Serial Data Output        |      | ❌        |
-| 04  | SCLK    | Clock Input               |      | ❌        |
-| 05  | WP#     | Write protection          |      | ❌        |
-| 06  | HOLD#   | Hold, to pause the device |      | ❌        |
-| 07  | VCC     | + 3.3V Power Supply       | 3.3V | ❌        |
-| 08  | GND     | Ground                    | GND  | ❌        |
+| 01  | CS#     | Chip Select               | pa11     | ❌        |
+| 02  | SO/SIO1 | Serial Data Output        |  pa12     | ❌        |
+| 03  | WP#     | Write protection          |      | ❌        |
+| 04  | GND     | Ground                    | GND  | ✅        |
+| 05  | SI/SIO0 | Serial Data Input         | PA13 | ❌        |
+| 06  | SCLK    | Clock Input               |  PA14    | ❌        |
+| 07  | HOLD#   | Hold, to pause the device |      | ❌        |
+| 08  | VCC     | + 3.3V Power Supply       | 3.3V | ✅        |
 
 ### Photos
 

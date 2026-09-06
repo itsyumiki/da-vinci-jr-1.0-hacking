@@ -254,17 +254,17 @@ We have 5 PIOs available, PA through PE.
 | PC5  | LCD DB5      | Data line   | ❌      | ✅        |
 | PC6  | LCD DB6      | Data line   | ❌      | ✅        |
 | PC7  | LCD DB7      | Data line   | ❌      | ✅        |
-| PC8  | LCD R/W      | R/W         | ❌      | ✅        |
+| PC8  | LCD R/W      | R/W line    | ❌      | ✅        |
 | PC9  |              |             |         |           |
-| PC10 |              |             |         |           |
+| PC10 | LCD K (GND)  | Backlight   | ❌      | ✅        |
 | PC11 |              |             |         |           |
 | PC12 |              |             |         |           |
-| PC13 |              |             |         |           |
+| PC13 | LCD E        | Enable      | ❌      | ✅        |
 | PC14 |              |             |         |           |
 | PC15 |              |             |         |           |
 | PC16 |              |             |         |           |
 | PC17 |              |             |         |           |
-| PC18 |              |             |         |           |
+| PC18 | LCD RS       | RS line     | ❌      | ✅        |
 | PC19 | Y endstop    | Y endstop   | ❌      | ✅        |
 | PC20 | Z step       | Z step      | ❌      | ✅        |
 | PC21 |              |             |         |           |

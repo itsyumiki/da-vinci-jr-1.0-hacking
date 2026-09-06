@@ -74,3 +74,7 @@ Then GPT took my protocol description and wrote a C firmware for the printer sid
 Currently I mapped almost all the pins for the sam4e8e (missing the flash chip and the buzzer, maybe some leds), waiting for the lpc to sam chip uart passthrough so I can map the rest. I mapped enough pins for an interactive control system (endstops, buttons, motors etc all mapped), mainly missing the hotend and LCD for the rest.
 
 Later on, I will also add a ESP12 chip to the board so I can use the RRF webui.
+
+### Update 06.09.2026 15:20 GMT+3:
+
+I have traced a lot of the remaining pins thanks to the demo firmware. I have only the hotend chip left, 2 of the NFC pins, and some unused pins that i wonder what they do. I mapped the heater, all of the fans, and the flash chip.

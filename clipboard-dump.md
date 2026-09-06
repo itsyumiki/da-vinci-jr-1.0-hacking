@@ -16,6 +16,13 @@ New pinouts to sync later:
 - PIO2_7 - extruder filament sensor
 - PIO2_1 - extruder motor spinning sensor
 - PIO1_0 - hotend temp sensor
+- PIO1_10 reflow fan
+- PIO0_4 - nfc 6
+- PIO0_5 - nfc 5
+- PIO0_9 - heater
+- PIO2_5 - hotend fan
+- PIO2_10 - D18 led
+-
 
 - PC8 - lcd 5
 - PC7 - lcd 14
