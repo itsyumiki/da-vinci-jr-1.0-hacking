@@ -14,9 +14,11 @@ I try to add source links whenever possible.
 
 | Task Name  | Description                             | Status | Main Board | Sub Board | Hotend Board |
 | ---------- | --------------------------------------- | ------ | ---------- | --------- | ------------ |
-| Pinouts    | Trace all of the pinouts of the printer | 85%    | 40%        | 100%      | 90%          |
+| Pinouts    | Trace all of the pinouts of the printer | 99%    | 98%        | 100%      | 100%         |
 | Schematics | Draw the schematics of the printer      | 85%    | 30%        | 100%      | 100%         |
 | Configs    | Build firmware configs for the printer  | 0%     | -          | -         | -            |
+
+All of the populated pinouts has been traced. Some unpopulated pins are traced as well. The status stays at 99% because I plan to populate the wifi chip (it seems to be ESP32-WROOM-32) and I haven't traced the pins for it. The current traced pins are more than enough for a fully functional firmware.
 
 ## More Information
 
