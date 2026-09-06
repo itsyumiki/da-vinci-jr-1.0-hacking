@@ -13,3 +13,12 @@ There are 4 steppers, 3 endstops, 1 filament sensor on the extruder motor, and a
 - Reflow fan
 
 Top light bar connects to **pin PD23**. It is active-high.
+
+## Lights
+
+### Pinout
+
+| Pin | Name | Description | MCU  | Verified? |
+| --- | ---- | ----------- | ---- | --------- |
+| 01  | -    | TopLamp     | PD23 | ✅        |
+| 01  | -    | BottomLamp  | PD27 | ✅        |

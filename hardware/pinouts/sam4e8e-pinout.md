@@ -192,8 +192,8 @@ We have 5 PIOs available, PA through PE.
 | PA0  |              |             | ❌      | ❌        |
 | PA1  |              |             | ❌      | ❌        |
 | PA2  | Buzzer       |             | ❌      | ✅        |
-| PA3  |              |             | ❌      | ❌        |
-| PA4  |              |             | ❌      | ❌        |
+| PA3  | U2 SDA       | Hotend chip | ❌      | ✅        |
+| PA4  | U2 SCL       | Hotend chip | ❌      | ✅        |
 | PA5  |              |             | ❌      | ❌        |
 | PA6  |              |             | ❌      | ❌        |
 | PA7  |              |             | ❌      | ❌        |
@@ -293,7 +293,7 @@ We have 5 PIOs available, PA through PE.
 | PD7  | Z dir        | Z dir       | ❌      | ✅        |
 | PD8  | X endstop    | X endstop   | ❌      | ✅        |
 | PD9  | Z endstop    | Z endstop   | ❌      | ✅        |
-| PD10 |              |             |         |           |
+| PD10 | J15          | Distance    |         | ✅        |
 | PD11 |              |             |         |           |
 | PD12 |              |             |         |           |
 | PD13 |              |             |         |           |
@@ -306,11 +306,11 @@ We have 5 PIOs available, PA through PE.
 | PD20 |              |             |         |           |
 | PD21 |              |             |         |           |
 | PD22 |              |             |         |           |
-| PD23 |              |             |         |           |
+| PD23 | J5           | Top lamp    |         | ✅        |
 | PD24 |              |             |         |           |
 | PD25 |              |             |         |           |
 | PD26 |              |             |         |           |
-| PD27 |              |             |         |           |
+| PD27 | J119         | Bottom lamp |         | ✅        |
 | PD28 |              |             |         |           |
 | PD29 |              |             |         |           |
 | PD30 | SW6          | Home btn    | ❌      | ✅        |

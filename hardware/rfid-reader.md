@@ -19,16 +19,16 @@ The board is **60mm to 36.5mm** in size. It seems to share the other characteris
 
 The board has a 6 pin connector going to the main board, and a 2 pin antenna connector. We only need the 6 pin connector.
 
-From what i know so far, it probably connects to the secondary MCU.
+It connects to the secondary MCU.
 
-| Pin | Name   | Description | MCU | Pin Desc | Verified? |
-| --- | ------ | ----------- | --- | -------- | --------- |
-| 01  | VIN    | Power input |     |          | ❌        |
-| 02  | GND    | Ground      |     |          | ✅        |
-| 03  | NRSTPD |             |     |          | ❌        |
-| 04  | ALE    |             |     |          | ❌        |
-| 05  | IRQ    |             |     |          | ❌        |
-| 06  | D7     |             |     |          | ❌        |
+| Pin | Name   | Description | MCU    | Verified? |
+| --- | ------ | ----------- | ------ | --------- |
+| 01  | VIN    | Power input | 3.3V   | ✅        |
+| 02  | GND    | Ground      | GND    | ✅        |
+| 03  | NRSTPD |             | PIO3_1 | ✅        |
+| 04  | ALE    |             | PIO3_0 | ✅        |
+| 05  | IRQ    |             | PIO0_5 | ✅        |
+| 06  | D7     |             | PIO0_4 | ✅        |
 
 ## PN512 NFC Chip
 
