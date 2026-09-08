@@ -78,3 +78,9 @@ Later on, I will also add a ESP12 chip to the board so I can use the RRF webui.
 ### Update 06.09.2026 15:20 GMT+3:
 
 I have traced a lot of the remaining pins thanks to the demo firmware. I have only the hotend chip left, 2 of the NFC pins, and some unused pins that i wonder what they do. I mapped the heater, all of the fans, and the flash chip.
+
+### Update 08.09.2026 18:10 GMT+3:
+
+I found some more pins connected between the lpc and sam chips, like the lpc reset pin etc. I think we can use this for future firmware updates, and we dont have to use a debugger for flashing anymore if it goes well.
+
+I also cloned RRF in [RepRapFirmware-for-da-vinci-jr-1.0](https://github.com/itsyumiki/RepRapFirmware-for-da-vinci-jr-1.0) repo. Im planning on keeping it easy to use and maintain, and keep the documentation in this repo.
