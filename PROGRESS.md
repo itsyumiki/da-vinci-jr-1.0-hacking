@@ -100,3 +100,11 @@ Other than that, RRF builds successfully, can home all motors, can read the sd c
 I concluded that the backlight is completely dead. Its a cob-ish led, and its impossible to fix it with the tools that I have. The screen itself is fine probably, but its almost unusable as it is.
 
 I will order a new lcd screen, and while waiting for it, i will try to use the screen as it is.
+
+### Update 10.09.2026 02:30 GMT+3:
+
+I have realized RRF doesnt support 16x04 screens, and barely supports even the buttons. I will continue by working on hotend part for now, since screen and buttons will be a lot of work to implement.
+
+Also I have verified that my screen works, but only the backlight is dead.
+
+About the screen part: i will both try to find a screen thats 12864 while physically same or similar size to the current screen so that i can align it with the front panel, and i will try to implement 16x04 support to RRF. It might take a lot of extra work and a full ui redesign, which i plan to do.
