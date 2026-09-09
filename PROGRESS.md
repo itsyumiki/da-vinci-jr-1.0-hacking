@@ -94,3 +94,9 @@ I am currently trying to create a proper build system for the firmware thats not
 I have realized I burned the back light of my lcd screen when i was desoldering it. I will order a new lcd screen, one with blue back light (i dont like the green ones).
 
 Other than that, RRF builds successfully, can home all motors, can read the sd card. I still havent integrated it with the hotend, but it should be easy to do.
+
+### Update 10.09.2026 00:50 GMT+3:
+
+I concluded that the backlight is completely dead. Its a cob-ish led, and its impossible to fix it with the tools that I have. The screen itself is fine probably, but its almost unusable as it is.
+
+I will order a new lcd screen, and while waiting for it, i will try to use the screen as it is.
