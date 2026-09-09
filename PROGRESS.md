@@ -84,3 +84,13 @@ I have traced a lot of the remaining pins thanks to the demo firmware. I have on
 I found some more pins connected between the lpc and sam chips, like the lpc reset pin etc. I think we can use this for future firmware updates, and we dont have to use a debugger for flashing anymore if it goes well.
 
 I also cloned RRF in [RepRapFirmware-for-da-vinci-jr-1.0](https://github.com/itsyumiki/RepRapFirmware-for-da-vinci-jr-1.0) repo. Im planning on keeping it easy to use and maintain, and keep the documentation in this repo.
+
+### Update 08.09.2026 21:15 GMT+3:
+
+I am currently trying to create a proper build system for the firmware thats not eclipse. I do not want to add any heavy dependencies or tools to the build process.
+
+### Update 09.09.2026 12:50 GMT+3:
+
+I have realized I burned the back light of my lcd screen when i was desoldering it. I will order a new lcd screen, one with blue back light (i dont like the green ones).
+
+Other than that, RRF builds successfully, can home all motors, can read the sd card. I still havent integrated it with the hotend, but it should be easy to do.

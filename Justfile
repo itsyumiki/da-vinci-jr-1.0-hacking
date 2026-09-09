@@ -1,4 +1,4 @@
-device := env("DEVICE", "/dev/tty.usbmodem101")
+device := env("DEVICE", "/dev/tty.usbmodem1201")
 manifest := "gpiodemo/Cargo.toml"
 sam_target := "thumbv7em-none-eabi"
 lpc_target := "thumbv6m-none-eabi"
