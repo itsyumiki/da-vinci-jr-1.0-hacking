@@ -122,3 +122,17 @@ Other than those, i also want to add a uart updater to the lpc firmware (i was a
 My end goal in this repo is to have something where someone can just open the motherboard door, short the sw6 to erase sam4 firmware, flash the binaries from my releases and get a fully functional printer without any external tools or hardware. I want to make users have no hw/sw mods required to flash or use the firmware. It is also related to why i want to implement 1604 support to rrf, so nobody has to buy a separate screen.
 
 I am also keeping full support for wifi, so anyone can populate the esp32-wroom location with a duet-flashed esp32 and use wifi. Poor man's jr 1.0w i guess.
+
+### Update 10.09.2026 23:20 GMT+3:
+
+I have added github issues for my timeline of plan. I plan to get gpt to implement most of them, with hardware testing between every step. In the meantime, i want to continue on mapping the extra pins etc from lpc but too lazy to
+
+current stuff that i need to issue-ify:
+
+- add uart update mechanism (need to first do the pinouts)
+- new screen support and button nav support (can do anytime, but i wanna do it after new screen so its more comfortable)
+- create proper calibration values (bed size, movement steps per mm, extruder steps per mm, heater and heating mass calibration stuff). i feel like i can extract most of these from decompiling the original firmware, which im also too lazy to do currently
+
+i will probably pause this project for a few days because my hyperfocus melted away after the fun parts (tracing pins and stuff, tactile debugging) is done. its also why im delegating most of the firmware stuff to gpt, because i dont enjoy writing raw c or rust. i doubt my chances of continuing and finishing this project this summer unless i get some other people interested or contributing to it, which seems a bit unlikely due to the age of the device and stuff.
+
+i will probably try starting one my new 200 new project ideas while ignoring the 10000 unfinished ideas
