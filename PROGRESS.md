@@ -108,3 +108,17 @@ I have realized RRF doesnt support 16x04 screens, and barely supports even the b
 Also I have verified that my screen works, but only the backlight is dead.
 
 About the screen part: i will both try to find a screen thats 12864 while physically same or similar size to the current screen so that i can align it with the front panel, and i will try to implement 16x04 support to RRF. It might take a lot of extra work and a full ui redesign, which i plan to do.
+
+### Update 10.09.2026 03:10 GMT+3:
+
+My main plan currently is to get the printer enough to print properly. I will then continue with the remaining parts, unpopulated parts of the pcb etc.
+
+About LPC: Since it handles the full heater and fans stuff, i plan to port those classes of RRF to the LPC, and stub those in the sam4e8e repo to call the other mcu over uart. I want to make something where sam tells lpc to go to a target temp and call back, not baby-sit every pin and pwm. This way i can also use the same tactic for klipper too.
+
+The thermal trigger stuff are also important to think about, what happens when uart drops etc
+
+Other than those, i also want to add a uart updater to the lpc firmware (i was able to find lpc's reset pin and the programming pin (this one is not fully verified) mapped to a sam gpio). This way, nobody else needs to have a SWD debugger to flash the lpc firmware.
+
+My end goal in this repo is to have something where someone can just open the motherboard door, short the sw6 to erase sam4 firmware, flash the binaries from my releases and get a fully functional printer without any external tools or hardware. I want to make users have no hw/sw mods required to flash or use the firmware. It is also related to why i want to implement 1604 support to rrf, so nobody has to buy a separate screen.
+
+I am also keeping full support for wifi, so anyone can populate the esp32-wroom location with a duet-flashed esp32 and use wifi. Poor man's jr 1.0w i guess.
