@@ -136,3 +136,7 @@ current stuff that i need to issue-ify:
 i will probably pause this project for a few days because my hyperfocus melted away after the fun parts (tracing pins and stuff, tactile debugging) is done. its also why im delegating most of the firmware stuff to gpt, because i dont enjoy writing raw c or rust. i doubt my chances of continuing and finishing this project this summer unless i get some other people interested or contributing to it, which seems a bit unlikely due to the age of the device and stuff.
 
 i will probably try starting one my new 200 new project ideas while ignoring the 10000 unfinished ideas
+
+### Update 11.09.2026 19:25 GMT+3:
+
+Big update. Thanks to @henmalib and gpt, we got the hotend working completely (heats up, measures, fan works). I am currently trying to get the extruder motor working (its a config issue, trying to define it as a toolhead). It might be possible to get it to print today or tomorrow. Currently the temps are very off (for example -5C for 25C, 18C for 40C) but i will fix that as soon as i get the extruder motor working.
