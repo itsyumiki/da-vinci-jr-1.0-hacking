@@ -71,6 +71,6 @@
 | 43  | PIO3_2       | -            | Not connected | ❌      | ❌        |
 | 44  | VDD          | 3.3V         | 3.3V          | ❌      | ❌        |
 | 45  | PIO1_5       | -            | Not connected | ❌      | ❌        |
-| 46  | PIO1_6/RXD   | ?            | Not Unknown   | ❌      | ❌        |
+| 46  | PIO1_6/RXD   | ?            | Unknown       | ❌      | ❌        |
 | 47  | PIO1_7/TXD   | ?            | Unknown       | ❌      | ❌        |
 | 48  | PIO3_3       | ?            | Unknown       | ❌      | ❌        |
