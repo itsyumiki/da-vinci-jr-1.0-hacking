@@ -27,5 +27,5 @@
 - [ ] Get the screen and buttons working
 - [ ] Get the buzzer and lights working
 - [x] Get the LPC communication working
-- [ ] Get the heater and temperature sensor working
-- [ ] Get the fans working
+- [x] Get the heater and temperature sensor working
+- [x] Get the fans working
