@@ -27,8 +27,25 @@ It connects to the secondary MCU.
 | 02  | GND    | Ground      | GND    | ✅        |
 | 03  | NRSTPD |             | PIO3_1 | ✅        |
 | 04  | ALE    |             | PIO3_0 | ✅        |
-| 05  | IRQ    |             | PIO0_5 | ✅        |
-| 06  | D7     |             | PIO0_4 | ✅        |
+| 05  | IRQ    | SDA         | PIO0_5 | ✅        |
+| 06  | D7     | SCL         | PIO0_4 | ✅        |
+
+The connector on the board has 12 pins (only pins 1-6 are connected to the reader):
+
+| Pin | Name   | Description | MCU    | Verified? |
+| --- | ------ | ----------- | ------ | --------- |
+| 01  | VIN    | Power input | 3.3V   | ✅        |
+| 02  | GND    | Ground      | GND    | ✅        |
+| 03  | NRSTPD |             | PIO3_1 | ✅        |
+| 04  | ALE    |             | PIO3_0 | ✅        |
+| 05  | IRQ    | SDA         | PIO0_5 | ✅        |
+| 06  | D7     | SCL         | PIO0_4 | ✅        |
+| 07  | VIN    | Power input | 3.3V   | ✅        |
+| 08  | GND    | Ground      | GND    | ✅        |
+| 09  |        | Unknown     | PIO3_4 | ✅        |
+| 10  |        | Unknown     | PIO3_5 | ✅        |
+| 11  |        | SDA         | PIO0_5 | ✅        |
+| 12  |        | SCL         | PIO0_4 | ✅        |
 
 ## PN512 NFC Chip
 
