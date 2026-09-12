@@ -80,7 +80,7 @@ We have 5 PIOs available, PA through PE.
 | PC6  | LCD DB6      | Data line   | ❌      | ✅        |
 | PC7  | LCD DB7      | Data line   | ❌      | ✅        |
 | PC8  | LCD R/W      | R/W line    | ❌      | ✅        |
-| PC9  |              |             |         |           |
+| PC9  | E2 step      | E2 step     | ❌      | ✅        |
 | PC10 | LCD K (GND)  | Backlight   | ❌      | ✅        |
 | PC11 |              |             |         |           |
 | PC12 |              |             |         |           |
@@ -96,7 +96,7 @@ We have 5 PIOs available, PA through PE.
 | PC22 | Y step       | Y step      | ❌      | ✅        |
 | PC23 | X step       | X step      | ❌      | ✅        |
 | PC24 |              |             |         |           |
-| PC25 |              |             |         |           |
+| PC25 | 3D enable    | 3D enable   | ❌      | ✅        |
 | PC26 |              |             |         |           |
 | PC27 |              |             |         |           |
 | PC28 | E1 step      | E1 step     | ❌      | ✅        |
@@ -109,8 +109,8 @@ We have 5 PIOs available, PA through PE.
 | Pin  | Connected to | Description | Traced? | Verified? |
 | ---- | ------------ | ----------- | ------- | --------- |
 | PD0  |              |             |         |           |
-| PD1  |              |             |         |           |
-| PD2  |              |             |         |           |
+| PD1  | 3D step      | 3D step     | ❌      | ✅        |
+| PD2  | 3D dir       | 3D dir      | ❌      | ✅        |
 | PD3  | X enable     | X enable    | ❌      | ✅        |
 | PD4  | X dir        | X dir       | ❌      | ✅        |
 | PD5  | Y enable     | Y enable    | ❌      | ✅        |
@@ -121,12 +121,12 @@ We have 5 PIOs available, PA through PE.
 | PD10 | J15          | Distance    |         | ✅        |
 | PD11 |              |             |         |           |
 | PD12 |              |             |         |           |
-| PD13 |              |             |         |           |
+| PD13 | E2 enable    | E2 enable   | ❌      | ✅        |
 | PD14 |              |             |         |           |
 | PD15 |              |             |         |           |
 | PD16 | E1 enable    | E1 enable   | ❌      | ✅        |
 | PD17 | E1 dir       | E1 dir      | ❌      | ✅        |
-| PD18 |              |             |         |           |
+| PD18 | E2 dir       | E2 dir      | ❌      | ✅        |
 | PD19 |              |             |         |           |
 | PD20 |              |             |         |           |
 | PD21 |              |             |         |           |

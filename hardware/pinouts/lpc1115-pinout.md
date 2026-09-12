@@ -11,8 +11,8 @@
 
 | Pin | Pin Desc   | Connected To | Description            | Traced? | Verified? |
 | --- | ---------- | ------------ | ---------------------- | ------- | --------- |
-| 01  | PIO2_6     | ?            | Unknown                | ❌      | ❌        |
-| 02  | PIO2_0     | ?            | Unknown                | ❌      | ❌        |
+| 01  | PIO2_6     | -            | Not connected          | ❌      | ✅        |
+| 02  | PIO2_0     | -            | Not connected          | ❌      | ✅        |
 | 03  | PIO0_0/RST | ?            | Unknown                | ❌      | ❌        |
 | 04  | PIO0_1     | ?            | Unknown                | ❌      | ❌        |
 | 05  | VSS        | GND          | Ground                 | ✅      | ❌        |

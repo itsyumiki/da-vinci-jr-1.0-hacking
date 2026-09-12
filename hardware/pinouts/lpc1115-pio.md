@@ -13,8 +13,8 @@ We have 5 PIOs available, PIO0 through PIO3.
 
 | Pin     | Connected to | Description        | Traced? | Verified? |
 | ------- | ------------ | ------------------ | ------- | --------- |
-| PIO0_0  | ?            | Unknown            | ❌      | ❌        |
-| PIO0_1  | ?            | Unknown            | ❌      | ❌        |
+| PIO0_0  | PC15 J115 4  | Reset pin          | ❌      | ✅        |
+| PIO0_1  | PC13 J115 3  | ISP pin            | ❌      | ✅        |
 | PIO0_2  | -            | Not connected      | ❌      | ❌        |
 | PIO0_3  | J19/J14 5    | Unknown input      | ❌      | ✅        |
 | PIO0_4  | J12/J123 6   | NFC board          | ❌      | ✅        |
@@ -23,7 +23,7 @@ We have 5 PIOs available, PIO0 through PIO3.
 | PIO0_7  | ?            | Unknown            | ❌      | ❌        |
 | PIO0_8  | ?            | Unknown            | ❌      | ❌        |
 | PIO0_9  | J11 J4       | Heater             | ❌      | ✅        |
-| PIO0_10 | ?            | Unknown            | ❌      | ❌        |
+| PIO0_10 | J114 5       | SWCLK              | ❌      | ✅        |
 | PIO0_11 | ?            | Unknown            | ❌      | ❌        |
 
 ## PIO 1
@@ -33,7 +33,7 @@ We have 5 PIOs available, PIO0 through PIO3.
 | PIO1_0  | J11 J3       | Hotend NTC    | ❌      | ✅        |
 | PIO1_1  | -            | Not connected | ❌      | ❌        |
 | PIO1_2  | -            | Not connected | ❌      | ❌        |
-| PIO1_3  | ?            | Unknown       | ❌      | ❌        |
+| PIO1_3  | J114 2       | SWDIO         | ❌      | ✅        |
 | PIO1_4  | -            | Not connected | ❌      | ❌        |
 | PIO1_5  | -            | Not connected | ❌      | ❌        |
 | PIO1_6  | U2 PA6       | UART RXD      | ❌      | ✅        |
@@ -47,13 +47,13 @@ We have 5 PIOs available, PIO0 through PIO3.
 
 | Pin     | Connected to | Description        | Traced? | Verified? |
 | ------- | ------------ | ------------------ | ------- | --------- |
-| PIO2_0  | ?            | Unknown            | ❌      | ❌        |
+| PIO2_0  | -            | Not connected      | ❌      | ✅        |
 | PIO2_1  | J19/J14 1    | E1 rotation sensor | ❌      | ✅        |
 | PIO2_2  | ?            | Unknown            | ❌      | ❌        |
 | PIO2_3  | -            | Not connected      | ❌      | ❌        |
 | PIO2_4  | ?            | Unknown            | ❌      | ❌        |
 | PIO2_5  | J11 J2       | Hotend fan         | ❌      | ✅        |
-| PIO2_6  | ?            | Unknown            | ❌      | ❌        |
+| PIO2_6  | -            | Not connected      | ❌      | ✅        |
 | PIO2_7  | J19/J14 2    | Fil. runout sensor | ❌      | ✅        |
 | PIO2_8  | J19/J14 6    | Unknown input      | ❌      | ✅        |
 | PIO2_9  | ?            | Unknown            | ❌      | ❌        |

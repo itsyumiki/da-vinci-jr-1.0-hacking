@@ -24,3 +24,5 @@ New pinouts to sync later:
 - PIO0_9 - heater
 - PIO2_5 - hotend fan
 - PIO2_10 - D18 led
+- PC13 - LPC ISP
+- PC15 - LPC reset
