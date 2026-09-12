@@ -106,7 +106,7 @@ The connector mentioned here is the 22 pin connector.
 
 | Button | Name   | Description  | Connector Pin | Verified? | MCU Pin | Verified? |
 | ------ | ------ | ------------ | ------------- | --------- | ------- | --------- |
-| SW1    | UP     | Up button    | 18            | ✅        | PE1     | ✅        |
+| SW1    | UP     | Up button    | 18            | ✅        | PE5     | ✅        |
 | SW2    | DOWN   | Down button  | 16            | ✅        | PA21    | ✅        |
 | SW3    | RIGHT  | Right button | 19            | ✅        | PE4     | ✅        |
 | SW4    | LEFT   | Left button  | 17            | ✅        | PB3     | ✅        |

@@ -146,8 +146,8 @@ We have 5 PIOs available, PA through PE.
 | Pin | Connected to | Description | Traced? | Verified? |
 | --- | ------------ | ----------- | ------- | --------- |
 | PE0 |              |             |         |           |
-| PE1 | SW1          | Up btn      | ❌      | ✅        |
+| PE1 |              |             |         |           |
 | PE2 | Y dir        | Y dir       | ❌      | ✅        |
 | PE3 | U18 GPIO15   | Unknown     | ❌      | ✅        |
 | PE4 | SW3          | Right btn   | ❌      | ✅        |
-| PE5 |              |             |         |           |
+| PE5 | SW1          | Up btn      | ❌      | ✅        |

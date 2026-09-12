@@ -97,26 +97,26 @@ The 22-pin LCD connector connects the main board with the sub-board, and carries
 | --- | ---------- | ----------- | --------- | --------- | ------------- | --------- |
 | 01  | +5V        | 5V Power    | ✅        | 5V        | 5V power      | ✅        |
 | 02  | GND        | Ground      | ✅        | GND       | Ground        | ✅        |
-| 03  | 111        | PC18        | ❌        | E         | LCD enable    | 🚧        |
-| 04  | 82         | PC8         | ❌        | R/W       | LCD R/W       | 🚧        |
-| 05  | U1_Pin1    | ???         | ❌        | RS        | LCD RS        | 🚧        |
-| 06  | 11         | PC0         | ❌        | D0        | LCD data bus  | 🚧        |
-| 07  | 38         | PC1         | ❌        | D1        | LCD data bus  | 🚧        |
-| 08  | 39         | PC2         | ❌        | D2        | LCD data bus  | 🚧        |
-| 09  | 40         | PC3         | ❌        | D3        | LCD data bus  | 🚧        |
-| 10  | 41         | PC4         | ❌        | D4        | LCD data bus  | 🚧        |
-| 11  | 58         | PC5         | ❌        | D5        | LCD data bus  | 🚧        |
-| 12  | 54         | PC6         | ❌        | D6        | LCD data bus  | 🚧        |
-| 13  | 48         | PC7         | ❌        | D7        | LCD data bus  | 🚧        |
-| 14  | 90         | PC10        | ❌        | LCD       | LCD backlight | 🚧        |
-| 15  | 34         | VDDCORE     | ❌        | ESCAPE    | Home button   | ✅        |
-| 16  | 32         | PA21/PGMD9  | ❌        | DOWN      | Down button   | ✅        |
-| 17  | 31         | PB3         | ❌        | LEFT      | Left button   | ✅        |
-| 18  | 28         | PE5         | ❌        | UP        | Up button     | ✅        |
-| 19  | 27         | PE4         | ❌        | RIGHT     | Right button  | ✅        |
-| 20  | 25         | PA17/PGMD5  | ❌        | ENTER     | Enter button  | ✅        |
-| 21  | GND        | Ground      | ❌        | GND       | Ground        | ✅        |
-| 22  | +5V        | Power       | ❌        | 5V        | 5V Power      | ✅        |
+| 03  | 111        | PC13        | ✅        | E         | LCD enable    | ✅        |
+| 04  | 82         | PC8         | ✅        | R/W       | LCD R/W       | ✅        |
+| 05  | U1_Pin1    | PC18        | ✅        | RS        | LCD RS        | ✅        |
+| 06  | 11         | PC0         | ✅        | D0        | LCD data bus  | ✅        |
+| 07  | 38         | PC1         | ✅        | D1        | LCD data bus  | ✅        |
+| 08  | 39         | PC2         | ✅        | D2        | LCD data bus  | ✅        |
+| 09  | 40         | PC3         | ✅        | D3        | LCD data bus  | ✅        |
+| 10  | 41         | PC4         | ✅        | D4        | LCD data bus  | ✅        |
+| 11  | 58         | PC5         | ✅        | D5        | LCD data bus  | ✅        |
+| 12  | 54         | PC6         | ✅        | D6        | LCD data bus  | ✅        |
+| 13  | 48         | PC7         | ✅        | D7        | LCD data bus  | ✅        |
+| 14  | 90         | PC10        | ✅        | LCD       | LCD backlight | ✅        |
+| 15  | 34         | PD29        | ✅        | ESCAPE    | Home button   | ✅        |
+| 16  | 32         | PA21        | ✅        | DOWN      | Down button   | ✅        |
+| 17  | 31         | PB3         | ✅        | LEFT      | Left button   | ✅        |
+| 18  | 28         | PE5         | ✅        | UP        | Up button     | ✅        |
+| 19  | 27         | PE4         | ✅        | RIGHT     | Right button  | ✅        |
+| 20  | 25         | PA17        | ✅        | ENTER     | Enter button  | ✅        |
+| 21  | GND        | Ground      | ✅        | GND       | Ground        | ✅        |
+| 22  | +5V        | Power       | ✅        | 5V        | 5V Power      | ✅        |
 
 ## 16-pin SD Card connector
 

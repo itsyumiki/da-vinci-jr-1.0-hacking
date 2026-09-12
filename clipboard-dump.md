@@ -27,3 +27,5 @@ New pinouts to sync later:
 - PIO2_10 - D18 led
 - PC13 - LPC ISP
 - PC15 - LPC reset
+
+PE5/PE1 need to fix mismatch (which one is the up button)
