@@ -140,3 +140,7 @@ i will probably try starting one my new 200 new project ideas while ignoring the
 ### Update 11.09.2026 19:25 GMT+3:
 
 Big update. Thanks to @henmalib and gpt, we got the hotend working completely (heats up, measures, fan works). I am currently trying to get the extruder motor working (its a config issue, trying to define it as a toolhead). It might be possible to get it to print today or tomorrow. Currently the temps are very off (for example -5C for 25C, 18C for 40C) but i will fix that as soon as i get the extruder motor working.
+
+### Update 12.09.2026 14:15 GMT+3:
+
+I mapped the ESP32 (?) pinout, but i started doubting that its an ESP32. Most power pins are not populated, and the pinout makes almost no sense. It doesnt stop me from soldering in an ESP12 though.
