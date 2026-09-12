@@ -31,7 +31,7 @@ We have 5 PIOs available, PIO0 through PIO3.
 | Pin     | Connected to | Description   | Traced? | Verified? |
 | ------- | ------------ | ------------- | ------- | --------- |
 | PIO1_0  | J11 J3       | Hotend NTC    | ❌      | ✅        |
-| PIO1_1  | -            | Not connected | ❌      | ❌        |
+| PIO1_1  | -            | Bed NTC (?)   | ❌      | ❌        |
 | PIO1_2  | -            | Not connected | ❌      | ❌        |
 | PIO1_3  | J114 2       | SWDIO         | ❌      | ✅        |
 | PIO1_4  | -            | Not connected | ❌      | ❌        |

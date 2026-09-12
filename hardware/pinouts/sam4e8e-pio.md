@@ -12,60 +12,60 @@ We have 5 PIOs available, PA through PE.
 
 ## PIO A
 
-| Pin  | Connected to | Description | Traced? | Verified? |
-| ---- | ------------ | ----------- | ------- | --------- |
-| PA0  |              |             | ❌      | ❌        |
-| PA1  |              |             | ❌      | ❌        |
-| PA2  | Buzzer       |             | ❌      | ✅        |
-| PA3  | U2 SDA       | Hotend chip | ❌      | ✅        |
-| PA4  | U2 SCL       | Hotend chip | ❌      | ✅        |
-| PA5  |              |             | ❌      | ❌        |
-| PA6  |              |             | ❌      | ❌        |
-| PA7  |              |             | ❌      | ❌        |
-| PA8  |              |             | ❌      | ❌        |
-| PA9  |              |             | ❌      | ❌        |
-| PA10 |              |             | ❌      | ❌        |
-| PA11 | U5 1         | Flash CS    | ❌      | ❌        |
-| PA12 | U18 GPIO8    | Unknown     | ❌      | ✅        |
-| PA13 | U18 GPIO6    | Unknown     | ❌      | ✅        |
-| PA14 | U18 GPIO7    | Unknown     | ❌      | ✅        |
-| PA15 |              |             | ❌      | ❌        |
-| PA16 | J120 1       | WIFI Panel  | ❌      | ✅        |
-| PA17 | SW5          | Enter btn   | ❌      | ✅        |
-| PA18 |              |             | ❌      | ❌        |
-| PA19 |              |             | ❌      | ❌        |
-| PA20 |              |             | ❌      | ❌        |
-| PA21 | SW2          | Down btn    | ❌      | ✅        |
-| PA22 |              |             | ❌      | ❌        |
-| PA23 |              |             | ❌      | ❌        |
-| PA24 |              |             | ❌      | ❌        |
-| PA25 | SD CD        | Card detect | ❌      | ✅        |
-| PA26 | SD DAT2      | -           | ❌      | ✅        |
-| PA27 | SD CS/DAT3   | CS          | ❌      | ✅        |
-| PA28 | SD CMD       | MOSI        | ❌      | ✅        |
-| PA29 | SD CLK       | SCK         | ❌      | ✅        |
-| PA30 | SD DAT0      | MISO        | ❌      | ✅        |
-| PA31 | SD DAT1      | -           | ❌      | ✅        |
+| Pin  | Connected to | Description   | Traced? | Verified? |
+| ---- | ------------ | ------------- | ------- | --------- |
+| PA0  |              |               | ❌      | ❌        |
+| PA1  |              |               | ❌      | ❌        |
+| PA2  | BZ1          | Buzzer        | ❌      | ✅        |
+| PA3  | U2 SDA       | Hotend chip   | ❌      | ✅        |
+| PA4  | U2 SCL       | Hotend chip   | ❌      | ✅        |
+| PA5  | U17 PIO1_7   | UART RXD      | ❌      | ✅        |
+| PA6  | U17 PIO1_6   | UART TXD      | ❌      | ✅        |
+| PA7  | Y2 XIN32     | 32kHz crystal | ✅      | ❌        |
+| PA8  | Y2 XOUT32    | 32kHz crystal | ✅      | ❌        |
+| PA9  | J10 4        | UART header   | ❌      | ❌        |
+| PA10 | J10 1        | UART header   | ❌      | ❌        |
+| PA11 | U5 1         | Flash CS      | ❌      | ❌        |
+| PA12 | U18 GPIO8    | Unknown       | ❌      | ✅        |
+| PA13 | U18 GPIO6    | Unknown       | ❌      | ✅        |
+| PA14 | U18 GPIO7    | Unknown       | ❌      | ✅        |
+| PA15 |              |               | ❌      | ❌        |
+| PA16 | J120 1       | WIFI Panel    | ❌      | ✅        |
+| PA17 | SW5          | Enter btn     | ❌      | ✅        |
+| PA18 |              |               | ❌      | ❌        |
+| PA19 |              |               | ❌      | ❌        |
+| PA20 |              |               | ❌      | ❌        |
+| PA21 | SW2          | Down btn      | ❌      | ✅        |
+| PA22 |              |               | ❌      | ❌        |
+| PA23 |              |               | ❌      | ❌        |
+| PA24 |              |               | ❌      | ❌        |
+| PA25 | SD CD        | Card detect   | ❌      | ✅        |
+| PA26 | SD DAT2      | -             | ❌      | ✅        |
+| PA27 | SD CS/DAT3   | CS            | ❌      | ✅        |
+| PA28 | SD CMD       | MOSI          | ❌      | ✅        |
+| PA29 | SD CLK       | SCK           | ❌      | ✅        |
+| PA30 | SD DAT0      | MISO          | ❌      | ✅        |
+| PA31 | SD DAT1      | -             | ❌      | ✅        |
 
 ## PIO B
 
-| Pin  | Connected to | Description | Traced? | Verified? |
-| ---- | ------------ | ----------- | ------- | --------- |
-| PB0  |              |             |         |           |
-| PB1  |              |             |         |           |
-| PB2  | U18 GPIO11   | Unknown     | ❌      | ✅        |
-| PB3  | SW4          | Left btn    | ❌      | ✅        |
-| PB4  |              |             |         |           |
-| PB5  |              |             |         |           |
-| PB6  |              |             |         |           |
-| PB7  |              |             |         |           |
-| PB8  |              |             |         |           |
-| PB9  |              |             |         |           |
-| PB10 |              |             |         |           |
-| PB11 |              |             |         |           |
-| PB12 |              |             |         |           |
-| PB13 |              |             |         |           |
-| PB14 | J7 LASER L   | Left laser  | ❌      | ✅        |
+| Pin  | Connected to | Description   | Traced? | Verified? |
+| ---- | ------------ | ------------- | ------- | --------- |
+| PB0  |              |               |         |           |
+| PB1  |              |               |         |           |
+| PB2  | U18 GPIO11   | Unknown       | ❌      | ✅        |
+| PB3  | SW4          | Left btn      | ❌      | ✅        |
+| PB4  | -            | JTAG TDI      | ❌      | ❌        |
+| PB5  | J113 4       | JTAG TDO      | ❌      | ❌        |
+| PB6  | J113 2       | SWDIO         | ❌      | ❌        |
+| PB7  | J113 5       | SWCLK         | ❌      | ❌        |
+| PB8  | Y1 XOUT      | 12Mhz crystal | ✅      | ❌        |
+| PB9  | Y1 XIN       | 12Mhz crystal | ✅      | ❌        |
+| PB10 | DDM          | USB data +    | ❌      | ❌        |
+| PB11 | DDP          | USB data -    | ❌      | ❌        |
+| PB12 | SW6          | Erase flash   | ✅      | ✅        |
+| PB13 |              |               |         |           |
+| PB14 | J7 LASER L   | Left laser    | ❌      | ✅        |
 
 ## PIO C
 
