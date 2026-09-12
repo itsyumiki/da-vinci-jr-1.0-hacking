@@ -1,0 +1,46 @@
+name: Build LPC1115 firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-lpc1115:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+          rustup target add thumbv6m-none-eabi
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: gpiodemo -> target
+
+      - name: Build LPC1115 firmware
+        run: just build-lpc
+
+      - name: Set artifact timestamp
+        id: timestamp
+        run: echo "value=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload LPC1115 firmware bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: lpc1115-firmware-${{ steps.timestamp.outputs.value }}
+          path: |
+            build/lpc1115.elf
+            build/lpc1115.bin
+          if-no-files-found: error
+
+      - name: Upload LPC1115 firmware binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: lpc1115-firmware-bin-${{ steps.timestamp.outputs.value }}
+          path: build/lpc1115.bin
+          if-no-files-found: error

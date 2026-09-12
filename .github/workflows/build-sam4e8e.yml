@@ -1,0 +1,47 @@
+name: Build SAM4E8E firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-sam4e8e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update && sudo apt-get install --yes --no-install-recommends gcc-arm-none-eabi just
+          rustup target add thumbv7em-none-eabi
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: gpiodemo -> target
+
+      - name: Build SAM4E8E firmware
+        run: just build
+
+      - name: Set artifact timestamp
+        id: timestamp
+        run: echo "value=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SAM4E8E firmware bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: sam4e8e-firmware-${{ steps.timestamp.outputs.value }}
+          path: |
+            build/firmware.elf
+            build/firmware.bin
+            build/firmware.map
+          if-no-files-found: error
+
+      - name: Upload SAM4E8E firmware binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: sam4e8e-firmware-bin-${{ steps.timestamp.outputs.value }}
+          path: build/firmware.bin
+          if-no-files-found: error

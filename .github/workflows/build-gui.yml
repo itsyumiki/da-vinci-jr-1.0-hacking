@@ -1,0 +1,28 @@
+name: Build GUI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-gui:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: gpiodemo -> target
+
+      - name: Build desktop controller
+        run: cargo build --manifest-path gpiodemo/Cargo.toml -p da-vinci-gui --release
+
+      - name: Upload desktop controller
+        uses: actions/upload-artifact@v7
+        with:
+          name: gpio-contorller-gui-macos
+          path: gpiodemo/target/release/da-vinci-gui
+          if-no-files-found: error
