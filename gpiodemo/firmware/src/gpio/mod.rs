@@ -10,7 +10,8 @@ pub use map::{BankId, PinId, PinMap};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PinMode {
-    Input { pull_up: bool },
+    Input,
+    InputPullup,
     Output { initial: Level },
 }
 

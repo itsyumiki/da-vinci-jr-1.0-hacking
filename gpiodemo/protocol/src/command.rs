@@ -38,6 +38,14 @@ macro_rules! wire_enum {
             }
         }
 
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let token = core::str::from_utf8(self.as_ref())
+                    .expect("wire enum tokens are ASCII literals");
+                f.write_str(token)
+            }
+        }
+
         impl TryFrom<&[u8]> for $name {
             type Error = ParseTokenError;
 
@@ -99,16 +107,10 @@ impl PinCapabilities {
 
     pub const NONE: Self = Self(0);
     pub const INPUT: Self = Self(Self::INPUT_BIT);
+    pub const OUTPUT: Self = Self(Self::OUTPUT_BIT);
+    pub const INPUT_OUTPUT: Self = Self(Self::INPUT_BIT | Self::OUTPUT_BIT);
     pub const INPUT_PULLUP: Self = Self(Self::INPUT_BIT | Self::PULL_UP_BIT);
     pub const GPIO: Self = Self(Self::INPUT_BIT | Self::OUTPUT_BIT | Self::PULL_UP_BIT);
-
-    pub const fn new(input: bool, output: bool, pull_up: bool) -> Self {
-        Self(
-            (if input { Self::INPUT_BIT } else { 0 })
-                | (if output { Self::OUTPUT_BIT } else { 0 })
-                | (if pull_up { Self::PULL_UP_BIT } else { 0 }),
-        )
-    }
 
     pub const fn from_bits(bits: u8) -> Option<Self> {
         if bits <= Self::GPIO.0 {
@@ -220,40 +222,6 @@ pub enum Request<T> {
 }
 
 impl<T> Request<T> {
-    pub fn map_target<U>(self, map: impl FnOnce(T) -> U) -> Request<U> {
-        match self {
-            Self::Hello => Request::Hello,
-            Self::Status => Request::Status,
-            Self::Map => Request::Map,
-            Self::Direction { target, direction } => Request::Direction {
-                target: map(target),
-                direction,
-            },
-            Self::Get { target } => Request::Get {
-                target: map(target),
-            },
-            Self::Set { target, level } => Request::Set {
-                target: map(target),
-                level,
-            },
-            Self::Pullup { target, state } => Request::Pullup {
-                target: map(target),
-                state,
-            },
-            Self::Listen { target, state } => Request::Listen {
-                target: map(target),
-                state,
-            },
-            Self::Query { target, what } => Request::Query {
-                target: map(target),
-                what,
-            },
-            Self::Bye => Request::Bye,
-            Self::Version => Request::Version,
-            Self::Help => Request::Help,
-        }
-    }
-
     pub fn try_map_target<U, E>(
         self,
         map: impl FnOnce(T) -> Result<U, E>,
@@ -365,53 +333,3 @@ pub enum Response<T, D> {
 
 pub type DecodedRequest<'a> = Request<&'a [u8]>;
 pub type DecodedResponse<'a> = Response<&'a [u8], &'a [u8]>;
-
-impl<T, D> Response<T, D> {
-    pub fn try_map<T2, D2, E>(
-        self,
-        map_target: impl FnOnce(T) -> Result<T2, E>,
-        map_data: impl FnOnce(D) -> Result<D2, E>,
-    ) -> Result<Response<T2, D2>, E> {
-        Ok(match self {
-            Self::Hello => Response::Hello,
-            Self::Status { identity } => Response::Status {
-                identity: map_data(identity)?,
-            },
-            Self::MapBank { bank } => Response::MapBank {
-                bank: map_data(bank)?,
-            },
-            Self::MapPin {
-                target,
-                package_pin,
-                bank,
-                bit,
-                capabilities,
-            } => Response::MapPin {
-                target: map_target(target)?,
-                package_pin,
-                bank: map_data(bank)?,
-                bit,
-                capabilities,
-            },
-            Self::Ack => Response::Ack,
-            Self::Value { target, level } => Response::Value {
-                target: map_target(target)?,
-                level,
-            },
-            Self::State {
-                target,
-                what,
-                value,
-            } => Response::State {
-                target: map_target(target)?,
-                what,
-                value,
-            },
-            Self::Version { version } => Response::Version { version },
-            Self::Help { command } => Response::Help { command },
-            Self::Error(error) => Response::Error(error.try_map(map_target, map_data)?),
-            Self::Unknown => Response::Unknown,
-            Self::Bye => Response::Bye,
-        })
-    }
-}

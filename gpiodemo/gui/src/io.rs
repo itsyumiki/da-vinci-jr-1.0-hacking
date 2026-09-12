@@ -7,14 +7,11 @@ use std::{
 };
 
 use da_vinci_protocol::{
-    DecodeError, DecodeErrorKind, DecodedResponse, Frame, Level, LineBuffer, LineError,
-    MAX_PACKET_LEN, Message, Packet, RawMessage, RequestId, Response as ProtocolResponse,
+    DecodedResponse, Frame, Level, LineBuffer, LineError, MAX_PACKET_LEN, Message, Packet,
+    RawMessage, RequestId, Response as ProtocolResponse,
 };
 
 const EVENT_QUEUE_CAPACITY: usize = 1_024;
-
-pub(super) type WireResponse = ProtocolResponse<String, String>;
-pub(super) type OwnedResponse = Message<String, WireResponse>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ListenerKey {
@@ -61,8 +58,8 @@ impl SerialIo {
         self.send(IoCommand::Disconnect)
     }
 
-    pub(super) fn write(&self, bytes: Vec<u8>) -> Result<(), String> {
-        self.send(IoCommand::Write(bytes))
+    pub(super) fn write(&self, frame: Frame) -> Result<(), String> {
+        self.send(IoCommand::Write(frame))
     }
 
     pub(super) fn set_listeners(&self, routes: Vec<ListenerRoute>) {
@@ -114,7 +111,7 @@ pub(super) struct ListenerRoute {
 enum IoCommand {
     Connect(String),
     Disconnect,
-    Write(Vec<u8>),
+    Write(Frame),
     Listeners(Vec<ListenerRoute>),
     DrainListeners,
 }
@@ -122,10 +119,7 @@ enum IoCommand {
 pub(super) enum IoEvent {
     Connected(String),
     Disconnected(Option<String>),
-    Line {
-        line: Frame,
-        packet: Result<OwnedResponse, DecodeError>,
-    },
+    Line(Frame),
     ListenerValues(Vec<ListenerValue>),
     Error(String),
 }
@@ -133,7 +127,7 @@ pub(super) enum IoEvent {
 struct IoState {
     port: Option<Box<dyn serialport::SerialPort>>,
     reader: LineBuffer,
-    writes: VecDeque<Vec<u8>>,
+    writes: VecDeque<Frame>,
     write_offset: usize,
     listeners: Vec<ListenerRoute>,
     listener_updates: Vec<Vec<Option<ListenerValue>>>,
@@ -154,6 +148,18 @@ impl IoState {
     fn clear_listeners(&mut self) {
         self.listeners.clear();
         self.listener_updates.clear();
+    }
+
+    fn clear_stream_state(&mut self) {
+        self.writes.clear();
+        self.write_offset = 0;
+        self.reader.clear();
+        self.clear_listeners();
+    }
+
+    fn become_disconnected(&mut self) {
+        self.port = None;
+        self.clear_stream_state();
     }
 }
 
@@ -181,7 +187,8 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             continue;
         }
 
-        if let Some(bytes) = state.writes.front() {
+        if let Some(frame) = state.writes.front() {
+            let bytes = frame.as_ref();
             let result = state
                 .port
                 .as_mut()
@@ -197,11 +204,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
                 }
                 Err(error) if transient_io_error(&error) => {}
                 Err(error) => {
-                    state.port = None;
-                    state.writes.clear();
-                    state.write_offset = 0;
-                    state.reader.clear();
-                    state.clear_listeners();
+                    state.become_disconnected();
                     let _ = events.send(IoEvent::Disconnected(Some(format!(
                         "Serial write failed: {error}"
                     ))));
@@ -219,11 +222,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             Ok(count) => {
                 for &byte in &buffer[..count] {
                     match state.reader.push(byte) {
-                        Ok(Some(line)) => {
-                            let line = Frame::try_from(line)
-                                .expect("line buffer enforces protocol frame capacity");
-                            route_line(line, &events, &mut state);
-                        }
+                        Ok(Some(frame)) => route_line(frame, &events, &mut state),
                         Ok(None) => {}
                         Err(LineError::TooLong) => {
                             let _ = events.send(IoEvent::Error(format!(
@@ -236,11 +235,7 @@ fn io_worker(commands: Receiver<IoCommand>, events: SyncSender<IoEvent>) {
             }
             Err(error) if transient_io_error(&error) => {}
             Err(error) => {
-                state.port = None;
-                state.writes.clear();
-                state.write_offset = 0;
-                state.reader.clear();
-                state.clear_listeners();
+                state.become_disconnected();
                 let _ = events.send(IoEvent::Disconnected(Some(format!(
                     "Serial read failed: {error}"
                 ))));
@@ -264,60 +259,13 @@ fn route_line(wire_line: Frame, events: &SyncSender<IoEvent>, state: &mut IoStat
             if let Some(pin) = active_listener(&state.listeners, source, id, target) {
                 coalesce_listener_update(&mut state.listener_updates, pin, wire_line, id, level);
             } else {
-                let _ = events.send(IoEvent::Line {
-                    line: wire_line,
-                    packet: own_response(Message {
-                        route: source,
-                        packet: Packet {
-                            id,
-                            body: ProtocolResponse::Value { target, level },
-                        },
-                    }),
-                });
+                let _ = events.send(IoEvent::Line(wire_line));
             }
         }
-        Ok(message) => {
-            let _ = events.send(IoEvent::Line {
-                line: wire_line,
-                packet: own_response(message),
-            });
-        }
-        Err(error) => {
-            let _ = events.send(IoEvent::Line {
-                line: wire_line,
-                packet: Err(error),
-            });
+        Ok(_) | Err(_) => {
+            let _ = events.send(IoEvent::Line(wire_line));
         }
     }
-}
-
-fn own_response(
-    message: Message<&[u8], DecodedResponse<'_>>,
-) -> Result<OwnedResponse, DecodeError> {
-    let packet = message.packet;
-    let malformed = || DecodeError {
-        id: Some(packet.id),
-        kind: DecodeErrorKind::Malformed,
-    };
-    let body = packet.body.try_map(
-        |target| {
-            core::str::from_utf8(target)
-                .map(str::to_owned)
-                .map_err(|_| malformed())
-        },
-        |data| {
-            core::str::from_utf8(data)
-                .map(str::to_owned)
-                .map_err(|_| malformed())
-        },
-    )?;
-    Ok(OwnedResponse {
-        route: String::from_utf8_lossy(message.route).into_owned(),
-        packet: Packet {
-            id: packet.id,
-            body,
-        },
-    })
 }
 
 fn active_listener(
@@ -362,10 +310,7 @@ fn coalesce_listener_update(
 fn handle_io_command(command: IoCommand, state: &mut IoState, events: &SyncSender<IoEvent>) {
     match command {
         IoCommand::Connect(name) => {
-            state.writes.clear();
-            state.write_offset = 0;
-            state.reader.clear();
-            state.clear_listeners();
+            state.clear_stream_state();
             match serialport::new(&name, 115_200)
                 .timeout(Duration::from_millis(20))
                 .open()
@@ -375,22 +320,18 @@ fn handle_io_command(command: IoCommand, state: &mut IoState, events: &SyncSende
                     let _ = events.send(IoEvent::Connected(name));
                 }
                 Err(error) => {
-                    state.port = None;
+                    state.become_disconnected();
                     let _ = events.send(IoEvent::Error(format!("Could not open {name}: {error}")));
                 }
             }
         }
         IoCommand::Disconnect => {
-            state.port = None;
-            state.writes.clear();
-            state.write_offset = 0;
-            state.reader.clear();
-            state.clear_listeners();
+            state.become_disconnected();
             let _ = events.send(IoEvent::Disconnected(None));
         }
-        IoCommand::Write(bytes) => {
+        IoCommand::Write(frame) => {
             if state.port.is_some() {
-                state.writes.push_back(bytes);
+                state.writes.push_back(frame);
             }
         }
         IoCommand::Listeners(routes) => {
@@ -486,6 +427,38 @@ mod tests {
     }
 
     #[test]
+    fn route_line_coalesces_only_active_listener_values() {
+        let listener = request_id(8);
+        let key = ListenerKey { route: 0, pin: 0 };
+        let (events, received) = mpsc::sync_channel(4);
+        let mut state = IoState::new();
+        handle_io_command(
+            IoCommand::Listeners(vec![listener_route(listener)]),
+            &mut state,
+            &events,
+        );
+
+        let active = frame(b"008 SAM HYG PA00 HIGH <3\n");
+        route_line(active, &events, &mut state);
+        assert!(received.try_recv().is_err());
+        assert_eq!(state.listener_updates[0][0].unwrap().key, key);
+
+        let ordinary = frame(b"001 SAM HII <3\n");
+        route_line(ordinary, &events, &mut state);
+        let Ok(IoEvent::Line(forwarded)) = received.try_recv() else {
+            panic!("ordinary response should be forwarded as its original frame");
+        };
+        assert_eq!(forwarded, ordinary);
+
+        let malformed = frame(b"002 SAM HII :3\n");
+        route_line(malformed, &events, &mut state);
+        let Ok(IoEvent::Line(forwarded)) = received.try_recv() else {
+            panic!("malformed response should be forwarded unchanged");
+        };
+        assert_eq!(forwarded, malformed);
+    }
+
+    #[test]
     fn listener_snapshot_keeps_only_still_configured_updates() {
         let old = request_id(8);
         let new = request_id(9);
@@ -560,7 +533,7 @@ mod tests {
         let (events, received) = mpsc::sync_channel(1);
         let mut state = IoState::new();
         handle_io_command(
-            IoCommand::Write(b"001 SAM HAI\n".to_vec()),
+            IoCommand::Write(frame(b"001 SAM HAI\n")),
             &mut state,
             &events,
         );

@@ -1,6 +1,5 @@
 use da_vinci_protocol::{
-    DecodeError, DecodeErrorKind, DecodedRequest, Frame, Message, Packet, RawMessage, Response,
-    ResponseError,
+    DecodeError, DecodeErrorKind, DecodedRequest, Frame, Message, Packet, Response, ResponseError,
 };
 
 use crate::{
@@ -72,7 +71,7 @@ impl<'route, const N: usize> Node<'route, N> {
             return false;
         };
         self.upstream
-            .enqueue(frame.as_ref())
+            .enqueue(frame)
             .expect("routed frame fits idle upstream transport");
         true
     }
@@ -97,21 +96,19 @@ impl<'route, const N: usize> Node<'route, N> {
         let Ok(Some(frame)) = self.upstream.next_frame() else {
             return false;
         };
-        match RawMessage::try_from(&frame) {
-            Ok(envelope) => {
-                let firmware = &mut self.firmware;
-                let response = self.router.dispatch(frame.as_ref(), envelope, |raw| {
-                    Message::<&[u8], DecodedRequest<'_>>::try_from(raw)
-                        .map(|message| firmware.handle(message.packet, gpio))
-                        .unwrap_or_else(|error| {
-                            decode_error_response::<&[u8]>(error)
-                                .expect("local command decode errors keep their ID")
-                        })
-                });
-                if let Some(response) = response {
-                    queue_response(&mut self.upstream, self.router.local_route(), response);
-                }
+        let firmware = &mut self.firmware;
+        match self.router.dispatch(&frame, |raw| {
+            Message::<&[u8], DecodedRequest<'_>>::try_from(raw)
+                .map(|message| firmware.handle(message.packet, gpio))
+                .unwrap_or_else(|error| {
+                    decode_error_response::<&[u8]>(error)
+                        .expect("local command decode errors keep their ID")
+                })
+        }) {
+            Ok(Some(response)) => {
+                queue_response(&mut self.upstream, self.router.local_route(), response);
             }
+            Ok(None) => {}
             Err(error) => {
                 if let Some(response) = decode_error_response::<&[u8]>(error) {
                     queue_response(&mut self.upstream, self.router.local_route(), response);
@@ -141,7 +138,7 @@ fn queue_response<T: AsRef<[u8]>, D: AsRef<[u8]>>(
     })
     .expect("protocol response always fits fixed packet buffer");
     transport
-        .enqueue(frame.as_ref())
+        .enqueue(frame)
         .expect("response queued only while upstream transport is idle");
 }
 
@@ -165,12 +162,12 @@ mod tests {
     use super::*;
     use crate::{
         BankId, PinId, PinMap, PinMode,
-        gpio::map::{BankInfo, Capabilities, PinInfo},
+        gpio::map::{Capabilities, PinInfo},
         router::{FrameError, FrameLink},
     };
 
     const BANK: BankId = BankId::new(0);
-    static BANKS: [BankInfo; 1] = [BankInfo::new("PIO2")];
+    static BANKS: [&str; 1] = ["PIO2"];
     static PINS: [PinInfo; 1] = [PinInfo::new(
         "PIO2_3",
         Some(38),
@@ -286,8 +283,8 @@ mod tests {
     }
 
     impl FrameLink for FakeFrameLink {
-        fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError> {
-            self.sent.borrow_mut().push(frame.to_vec());
+        fn try_send(&mut self, frame: &Frame) -> Result<(), FrameError> {
+            self.sent.borrow_mut().push(frame.as_ref().to_vec());
             Ok(())
         }
 

@@ -13,12 +13,12 @@ type FirmwareResponse = Response<&'static [u8], &'static [u8]>;
 #[derive(Clone, Copy)]
 enum PinState {
     Unset,
-    Configured {
-        direction: Direction,
+    Input {
         pull_up: bool,
         listener: Option<RequestId>,
         previous: Level,
     },
+    Output,
 }
 
 #[derive(Clone, Copy)]
@@ -70,13 +70,12 @@ impl Firmware {
             },
             DecodedRequest::Help => return self.begin_bulk(packet.id, BulkKind::Help, gpio),
             DecodedRequest::Direction { target, direction } => {
-                self.resolve(map, target).map_or_else(
-                    |error| error,
-                    |target| self.set_direction(map, target, direction, gpio),
-                )
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_direction(map, target, direction, gpio)
+                })
             }
             DecodedRequest::Get { target } => {
-                let Ok(target) = self.resolve(map, target) else {
+                let Some(target) = map.resolve(target) else {
                     return Packet {
                         id: packet.id,
                         body: bad_packet(),
@@ -94,20 +93,23 @@ impl Firmware {
                     return self.begin_bulk(packet.id, BulkKind::Values(target), gpio);
                 }
             }
-            DecodedRequest::Set { target, level } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_level(map, target, level, gpio),
-            ),
-            DecodedRequest::Pullup { target, state } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_pull_up(map, target, state == Toggle::On, gpio),
-            ),
-            DecodedRequest::Listen { target, state } => self.resolve(map, target).map_or_else(
-                |error| error,
-                |target| self.set_listening(map, target, state == Toggle::On, packet.id, gpio),
-            ),
+            DecodedRequest::Set { target, level } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_level(map, target, level, gpio)
+                })
+            }
+            DecodedRequest::Pullup { target, state } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_pull_up(map, target, state == Toggle::On, gpio)
+                })
+            }
+            DecodedRequest::Listen { target, state } => {
+                map.resolve(target).map_or_else(bad_packet, |target| {
+                    self.set_listening(map, target, state == Toggle::On, packet.id, gpio)
+                })
+            }
             DecodedRequest::Query { target, what } => {
-                let Ok(target) = self.resolve(map, target) else {
+                let Some(target) = map.resolve(target) else {
                     return Packet {
                         id: packet.id,
                         body: bad_packet(),
@@ -137,16 +139,18 @@ impl Firmware {
         }
     }
 
-    fn resolve(&self, map: &PinMap, token: &[u8]) -> Result<Target, FirmwareResponse> {
-        map.resolve(token).ok_or_else(bad_packet)
-    }
-
     fn begin_bulk<G: GpioHal>(
         &mut self,
         id: RequestId,
         kind: BulkKind,
         gpio: &G,
     ) -> Packet<FirmwareResponse> {
+        if self.bulk.is_some() {
+            return Packet {
+                id,
+                body: bad_packet(),
+            };
+        }
         self.bulk = Some(BulkResponse { id, next: 0, kind });
         self.poll_bulk(gpio)
             .expect("new bulk response always yields a packet")
@@ -176,13 +180,13 @@ impl Firmware {
         if matches!(kind, BulkKind::Map) {
             let body = if next < map.banks().len() {
                 Response::MapBank {
-                    bank: map.banks()[next].token.as_bytes(),
+                    bank: map.banks()[next].as_bytes(),
                 }
             } else if let Some(info) = map.pins().get(next - map.banks().len()) {
                 Response::MapPin {
                     target: info.token.as_bytes(),
                     package_pin: info.package_pin,
-                    bank: map.bank(info.bank).token.as_bytes(),
+                    bank: map.bank(info.bank).as_bytes(),
                     bit: info.bit,
                     capabilities: info.capabilities,
                 }
@@ -204,7 +208,7 @@ impl Firmware {
         };
 
         while next < map.pins().len() {
-            let pin = PinId::new(next as u8);
+            let pin = map.pin_id(next);
             next += 1;
             let info = map.pin(pin);
             if !target_contains(map, target, pin) || !info.capabilities.available() {
@@ -252,8 +256,8 @@ impl Firmware {
         let mut snapshots = [None; MAX_BANKS];
         for offset in 0..pin_count {
             let index = (self.listener_cursor + offset) % pin_count;
-            let pin = PinId::new(index as u8);
-            let PinState::Configured {
+            let pin = map.pin_id(index);
+            let PinState::Input {
                 listener: Some(listener),
                 previous,
                 ..
@@ -268,7 +272,7 @@ impl Firmware {
             if value == previous {
                 continue;
             }
-            if let PinState::Configured { previous, .. } = self.state_mut(pin) {
+            if let PinState::Input { previous, .. } = self.state_mut(pin) {
                 *previous = value;
             }
             self.listener_cursor = (index + 1) % pin_count;
@@ -311,23 +315,29 @@ impl Firmware {
         direction: Direction,
         gpio: &mut G,
     ) {
-        let listener = match self.state(pin) {
-            PinState::Configured { listener, .. } => listener,
-            PinState::Unset => None,
-        };
-        let mode = match direction {
-            Direction::Input => PinMode::Input { pull_up: false },
-            Direction::Output => PinMode::Output {
-                initial: Level::Low,
-            },
-        };
-        gpio.configure(pin, mode);
-        self.pins[pin.index()] = PinState::Configured {
-            direction,
-            pull_up: false,
-            listener,
-            previous: read_pin(map, gpio, pin),
-        };
+        match direction {
+            Direction::Input => {
+                let listener = match self.state(pin) {
+                    PinState::Input { listener, .. } => listener,
+                    PinState::Unset | PinState::Output => None,
+                };
+                gpio.configure(pin, PinMode::Input);
+                self.pins[pin.index()] = PinState::Input {
+                    pull_up: false,
+                    listener,
+                    previous: read_pin(map, gpio, pin),
+                };
+            }
+            Direction::Output => {
+                gpio.configure(
+                    pin,
+                    PinMode::Output {
+                        initial: Level::Low,
+                    },
+                );
+                self.pins[pin.index()] = PinState::Output;
+            }
+        }
     }
 
     fn set_level<G: GpioHal>(
@@ -347,15 +357,7 @@ impl Firmware {
             .pins_for(target)
             .filter(|pin| map.pin(*pin).capabilities.output())
         {
-            if direct
-                || matches!(
-                    self.state(pin),
-                    PinState::Configured {
-                        direction: Direction::Output,
-                        ..
-                    }
-                )
-            {
+            if direct || matches!(self.state(pin), PinState::Output) {
                 gpio.write(pin, level);
             }
         }
@@ -376,14 +378,8 @@ impl Firmware {
         }
         for pin in map.pins_for(target) {
             let info = map.pin(pin);
-            let needs_pull_up = matches!(
-                self.state(pin),
-                PinState::Configured {
-                    direction: Direction::Input,
-                    ..
-                }
-            );
-            if !info.capabilities.available() || (needs_pull_up && !info.capabilities.pull_up()) {
+            let is_input = matches!(self.state(pin), PinState::Input { .. });
+            if !info.capabilities.available() || (is_input && !info.capabilities.pull_up()) {
                 continue;
             }
             self.set_pull_up_pin(map, pin, enabled, gpio);
@@ -398,20 +394,21 @@ impl Firmware {
         enabled: bool,
         gpio: &mut G,
     ) {
-        let PinState::Configured {
-            direction,
-            pull_up,
-            previous,
-            ..
+        let PinState::Input {
+            pull_up, previous, ..
         } = self.state_mut(pin)
         else {
             return;
         };
-        if *direction != Direction::Input {
-            return;
-        }
         *pull_up = enabled;
-        gpio.configure(pin, PinMode::Input { pull_up: enabled });
+        gpio.configure(
+            pin,
+            if enabled {
+                PinMode::InputPullup
+            } else {
+                PinMode::Input
+            },
+        );
         *previous = read_pin(map, gpio, pin);
     }
 
@@ -428,22 +425,11 @@ impl Firmware {
         {
             return error;
         }
-        let direct = matches!(target, Target::Pin(_));
         for pin in map
             .pins_for(target)
             .filter(|pin| map.pin(*pin).capabilities.input())
         {
-            if direct
-                || matches!(
-                    self.state(pin),
-                    PinState::Configured {
-                        direction: Direction::Input,
-                        ..
-                    }
-                )
-            {
-                self.set_listener_pin(map, pin, enabled, id, gpio);
-            }
+            self.set_listener_pin(map, pin, enabled, id, gpio);
         }
         Response::Ack
     }
@@ -456,7 +442,7 @@ impl Firmware {
         id: RequestId,
         gpio: &G,
     ) {
-        let PinState::Configured {
+        let PinState::Input {
             listener, previous, ..
         } = self.state_mut(pin)
         else {
@@ -479,15 +465,14 @@ impl Firmware {
     fn query(&self, pin: PinId, what: Query) -> QueryValue {
         match (self.state(pin), what) {
             (PinState::Unset, _) => QueryValue::Unset,
-            (PinState::Configured { direction, .. }, Query::Direction) => {
-                QueryValue::Direction(direction)
-            }
-            (PinState::Configured { pull_up, .. }, Query::Pullup) => {
-                QueryValue::Toggle(pull_up.into())
-            }
-            (PinState::Configured { listener, .. }, Query::Listen) => {
+            (PinState::Input { .. }, Query::Direction) => QueryValue::Direction(Direction::Input),
+            (PinState::Output, Query::Direction) => QueryValue::Direction(Direction::Output),
+            (PinState::Input { pull_up, .. }, Query::Pullup) => QueryValue::Toggle(pull_up.into()),
+            (PinState::Output, Query::Pullup) => QueryValue::Toggle(Toggle::Off),
+            (PinState::Input { listener, .. }, Query::Listen) => {
                 QueryValue::Toggle(listener.is_some().into())
             }
+            (PinState::Output, Query::Listen) => QueryValue::Toggle(Toggle::Off),
         }
     }
 
@@ -495,11 +480,10 @@ impl Firmware {
         self.bulk = None;
         self.listener_cursor = 0;
         let map = gpio.pin_map();
-        for index in 0..map.pins().len() {
-            let pin = PinId::new(index as u8);
+        for pin in map.pin_ids() {
             let state = self.state_mut(pin);
             if !matches!(state, PinState::Unset) && map.pin(pin).capabilities.input() {
-                gpio.configure(pin, PinMode::Input { pull_up: false });
+                gpio.configure(pin, PinMode::Input);
             }
             *state = PinState::Unset;
         }
@@ -562,7 +546,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        gpio::map::{BankId, BankInfo, Capabilities, PinInfo},
+        gpio::map::{BankId, Capabilities, PinInfo},
         sam::{SAM_IDENTITY, SAM_PIN_MAP},
     };
     use da_vinci_protocol::Request;
@@ -570,7 +554,7 @@ mod tests {
     const BANK_0: BankId = BankId::new(0);
     const BANK_1: BankId = BankId::new(1);
 
-    static SYNTH_BANKS: [BankInfo; 2] = [BankInfo::new("PIO0"), BankInfo::new("PORTX")];
+    static SYNTH_BANKS: [&str; 2] = ["PIO0", "PORTX"];
     static SYNTH_PINS: [PinInfo; 4] = [
         PinInfo::new("PIO0_0", Some(1), BANK_0, 0, Capabilities::GPIO),
         PinInfo::new("PIO0_1", Some(2), BANK_0, 1, Capabilities::NONE),
@@ -612,10 +596,15 @@ mod tests {
 
         fn configure(&mut self, pin: PinId, mode: PinMode) {
             match mode {
-                PinMode::Input { pull_up } => {
+                PinMode::Input => {
                     self.inputs[pin.index()] = true;
                     self.outputs[pin.index()] = false;
-                    self.pull_ups[pin.index()] = pull_up;
+                    self.pull_ups[pin.index()] = false;
+                }
+                PinMode::InputPullup => {
+                    self.inputs[pin.index()] = true;
+                    self.outputs[pin.index()] = false;
+                    self.pull_ups[pin.index()] = true;
                 }
                 PinMode::Output { initial } => {
                     self.inputs[pin.index()] = false;
@@ -663,9 +652,12 @@ mod tests {
         assert_eq!(SYNTH_MAP.resolve(b"ALL"), Some(Target::All));
         assert_eq!(
             SYNTH_MAP.resolve(b"PIO0_0"),
-            Some(Target::Pin(PinId::new(0)))
+            Some(Target::Pin(SYNTH_MAP.pin_id(0)))
         );
-        assert_eq!(SYNTH_MAP.resolve(b"PX08"), Some(Target::Pin(PinId::new(3))));
+        assert_eq!(
+            SYNTH_MAP.resolve(b"PX08"),
+            Some(Target::Pin(SYNTH_MAP.pin_id(3)))
+        );
         assert_eq!(SYNTH_MAP.resolve(b"PA00"), None);
     }
 
@@ -701,7 +693,7 @@ mod tests {
                     body: Response::MapPin {
                         target: info.token.as_bytes(),
                         package_pin: info.package_pin,
-                        bank: SYNTH_MAP.bank(info.bank).token.as_bytes(),
+                        bank: SYNTH_MAP.bank(info.bank).as_bytes(),
                         bit: info.bit,
                         capabilities: info.capabilities,
                     },
@@ -751,6 +743,73 @@ mod tests {
     }
 
     #[test]
+    fn active_bulk_stream_rejects_replacement_but_allows_one_shot_requests() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let stream_id = RequestId::new(20).unwrap();
+
+        assert_eq!(
+            firmware.handle(request(20, Request::Help), &mut gpio),
+            Packet {
+                id: stream_id,
+                body: Response::Help {
+                    command: Command::ALL[0],
+                },
+            }
+        );
+
+        for (id, body) in [
+            (21, Request::Map),
+            (22, Request::Help),
+            (
+                23,
+                Request::Get {
+                    target: b"ALL".as_slice(),
+                },
+            ),
+            (
+                24,
+                Request::Query {
+                    target: b"ALL".as_slice(),
+                    what: Query::Direction,
+                },
+            ),
+        ] {
+            assert_eq!(
+                firmware.handle(request(id, body), &mut gpio).body,
+                bad_packet()
+            );
+        }
+
+        assert_eq!(
+            firmware
+                .handle(request(25, Request::Version), &mut gpio)
+                .body,
+            Response::Version {
+                version: PROTOCOL_VERSION,
+            }
+        );
+
+        for &command in &Command::ALL[1..] {
+            assert_eq!(
+                firmware.poll_bulk(&gpio),
+                Some(Packet {
+                    id: stream_id,
+                    body: Response::Help { command },
+                })
+            );
+        }
+        assert_eq!(
+            firmware.poll_bulk(&gpio),
+            Some(Packet {
+                id: stream_id,
+                body: Response::Ack,
+            })
+        );
+        assert!(firmware.poll_bulk(&gpio).is_none());
+    }
+
+    #[test]
     fn real_sam_map_stream_records_all_metadata_within_frame_limit() {
         use da_vinci_protocol::{Frame, Message};
 
@@ -759,7 +818,6 @@ mod tests {
         let mut packet = Some(firmware.handle(request(11, Request::Map), &mut gpio));
         let mut banks = 0;
         let mut pins = 0;
-        let mut unavailable = 0;
 
         while let Some(current) = packet {
             Frame::try_from(Message {
@@ -769,10 +827,7 @@ mod tests {
             .expect("every SAM MAP record must fit");
             match current.body {
                 Response::MapBank { .. } => banks += 1,
-                Response::MapPin { capabilities, .. } => {
-                    pins += 1;
-                    unavailable += usize::from(!capabilities.available());
-                }
+                Response::MapPin { .. } => pins += 1,
                 Response::Ack => break,
                 _ => panic!("MAP stream emitted unrelated response"),
             }
@@ -781,7 +836,6 @@ mod tests {
 
         assert_eq!(banks, SAM_PIN_MAP.banks().len());
         assert_eq!(pins, SAM_PIN_MAP.pins().len());
-        assert_eq!(unavailable, 6);
     }
 
     #[test]
@@ -799,7 +853,7 @@ mod tests {
             firmware
                 .handle(request(2, Request::Get { target: b"PIO0_0" }), &mut gpio)
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(0), TargetError::Unset)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(0), TargetError::Unset)
         );
 
         firmware.handle(
@@ -865,7 +919,7 @@ mod tests {
 
         assert!(!gpio.pull_ups[0]);
         assert_eq!(
-            firmware.query(PinId::new(0), Query::Pullup),
+            firmware.query(SYNTH_MAP.pin_id(0), Query::Pullup),
             QueryValue::Toggle(Toggle::Off)
         );
     }
@@ -888,7 +942,7 @@ mod tests {
                     &mut gpio,
                 )
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(1), TargetError::Unavailable)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(1), TargetError::Unavailable)
         );
         assert_eq!(
             firmware
@@ -909,7 +963,7 @@ mod tests {
                     &mut gpio,
                 )
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(2), TargetError::Unavailable)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(2), TargetError::Unavailable)
         );
     }
 
@@ -1083,6 +1137,103 @@ mod tests {
     }
 
     #[test]
+    fn changing_listened_input_to_output_drops_input_only_state() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let pin = SYNTH_MAP.pin_id(0);
+
+        firmware.handle(
+            request(
+                1,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Input,
+                },
+            ),
+            &mut gpio,
+        );
+        firmware.handle(
+            request(
+                110,
+                Request::Listen {
+                    target: b"PIO0_0",
+                    state: Toggle::On,
+                },
+            ),
+            &mut gpio,
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::On)
+        );
+
+        firmware.handle(
+            request(
+                2,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Output,
+                },
+            ),
+            &mut gpio,
+        );
+
+        assert_eq!(
+            firmware.query(pin, Query::Direction),
+            QueryValue::Direction(Direction::Output)
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Pullup),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        gpio.values[pin.index()] = Level::High;
+        assert_eq!(firmware.poll_listener(&gpio), None);
+    }
+
+    #[test]
+    fn listener_on_output_is_acknowledged_without_becoming_active() {
+        let mut firmware = firmware();
+        let mut gpio = FakeHal::new(&SYNTH_MAP);
+        let pin = SYNTH_MAP.pin_id(0);
+
+        firmware.handle(
+            request(
+                1,
+                Request::Direction {
+                    target: b"PIO0_0",
+                    direction: Direction::Output,
+                },
+            ),
+            &mut gpio,
+        );
+        assert_eq!(
+            firmware
+                .handle(
+                    request(
+                        120,
+                        Request::Listen {
+                            target: b"PIO0_0",
+                            state: Toggle::On,
+                        },
+                    ),
+                    &mut gpio,
+                )
+                .body,
+            Response::Ack
+        );
+        assert_eq!(
+            firmware.query(pin, Query::Listen),
+            QueryValue::Toggle(Toggle::Off)
+        );
+        gpio.values[pin.index()] = Level::High;
+        assert_eq!(firmware.poll_listener(&gpio), None);
+    }
+
+    #[test]
     fn bye_releases_initialized_pins_and_listener_state() {
         let mut firmware = firmware();
         let mut gpio = FakeHal::new(&SYNTH_MAP);
@@ -1116,7 +1267,7 @@ mod tests {
             firmware
                 .handle(request(4, Request::Get { target: b"PIO0_0" }), &mut gpio)
                 .body,
-            pin_error(&SYNTH_MAP, PinId::new(0), TargetError::Unset)
+            pin_error(&SYNTH_MAP, SYNTH_MAP.pin_id(0), TargetError::Unset)
         );
     }
 }

@@ -57,11 +57,18 @@ fn line_buffer_frames_and_recovers_after_overflow() {
     let mut seen = false;
     for &byte in b"\r001 SAM HAI\r\n" {
         if let Some(line) = buffer.push(byte).unwrap() {
-            assert_eq!(line, b"001 SAM HAI");
+            assert_eq!(line.as_ref(), b"001 SAM HAI\n");
             seen = true;
         }
     }
     assert!(seen);
+
+    for _ in 0..MAX_PACKET_LEN - 1 {
+        assert_eq!(buffer.push(b'x'), Ok(None));
+    }
+    let max_frame = buffer.push(b'\n').unwrap().unwrap();
+    assert_eq!(max_frame.as_ref().len(), MAX_PACKET_LEN);
+    assert_eq!(max_frame.as_ref()[MAX_PACKET_LEN - 1], b'\n');
 
     for _ in 0..MAX_PACKET_LEN - 1 {
         assert_eq!(buffer.push(b'x'), Ok(None));
@@ -72,7 +79,7 @@ fn line_buffer_frames_and_recovers_after_overflow() {
 
     for &byte in b"008 SAM HII <3\n" {
         if let Some(line) = buffer.push(byte).unwrap() {
-            assert_eq!(line, b"008 SAM HII <3");
+            assert_eq!(line.as_ref(), b"008 SAM HII <3\n");
         }
     }
 }
@@ -85,7 +92,7 @@ fn frame_owns_exact_bounded_bytes() {
     }
     assert_eq!(
         Frame::try_from(&[b'x'; MAX_PACKET_LEN + 1][..]),
-        Err(FrameTooLong)
+        Err(LineError::TooLong)
     );
 }
 
@@ -174,51 +181,6 @@ fn routed_envelope_encoding_validates_route_tokens_and_preserves_ids() {
             Err(EncodeError::InvalidRouteToken)
         );
     }
-}
-
-#[test]
-fn message_frame_conversions_round_trip_typed_and_opaque_messages() {
-    let request = Message {
-        route: b"LPC".as_slice(),
-        packet: Packet {
-            id: id(41),
-            body: Request::Set {
-                target: b"PIO2_3".as_slice(),
-                level: Level::High,
-            },
-        },
-    };
-    let frame = Frame::try_from(request).unwrap();
-    assert_eq!(frame.as_ref(), b"041 LPC SET PIO2_3 HIGH OK?\n");
-    let raw = RawMessage::try_from(&frame).unwrap();
-    let decoded = Message::<&[u8], DecodedRequest<'_>>::try_from(raw).unwrap();
-    assert_eq!(decoded, request);
-
-    let response = Message {
-        route: b"LPC".as_slice(),
-        packet: Packet {
-            id: id(42),
-            body: Response::<&[u8], &[u8]>::Version {
-                version: PROTOCOL_VERSION,
-            },
-        },
-    };
-    let frame = Frame::try_from(response).unwrap();
-    assert_eq!(frame.as_ref(), b"042 LPC VER 1 :3\n");
-    let raw = RawMessage::try_from(&frame).unwrap();
-    let decoded = Message::<&[u8], DecodedResponse<'_>>::try_from(raw).unwrap();
-    assert_eq!(decoded, response);
-
-    let opaque = Message {
-        route: b"ABC".as_slice(),
-        packet: Packet {
-            id: id(43),
-            body: b"WAT opaque body".as_slice(),
-        },
-    };
-    let frame = Frame::try_from(opaque).unwrap();
-    assert_eq!(frame.as_ref(), b"043 ABC WAT opaque body\n");
-    assert_eq!(RawMessage::try_from(&frame), Ok(opaque));
 }
 
 #[test]
@@ -429,6 +391,16 @@ fn response_wire_examples_use_symbolic_pins() {
             },
             "008 SAM MAP PIN PIO2_3 - PIO2 3 1 <3\n",
         ),
+        (
+            Response::MapPin {
+                target: b"PIO0_4".as_slice(),
+                package_pin: Some(15),
+                bank: b"PIO0".as_slice(),
+                bit: 4,
+                capabilities: PinCapabilities::INPUT_OUTPUT,
+            },
+            "008 SAM MAP PIN PIO0_4 15 PIO0 4 3 <3\n",
+        ),
         (Response::Ack, "008 SAM OKA <3\n"),
         (
             Response::Value {
@@ -583,6 +555,10 @@ fn packet_ids_remain_decimal_but_numeric_gpio_targets_are_rejected() {
     assert_eq!(RequestId::new(1000), None);
     assert_eq!(RequestId::new(1).unwrap().slot(), 0);
     assert_eq!(RequestId::new(999).unwrap().slot(), RequestId::COUNT - 1);
+    assert_eq!(
+        core::mem::size_of::<Option<RequestId>>(),
+        core::mem::size_of::<RequestId>()
+    );
     assert!(decoded_request(b"000 SAM HAI").is_err());
     assert_eq!(
         decoded_request(b"9 SAM GET PE05 OK?"),
@@ -616,74 +592,7 @@ fn packet_ids_remain_decimal_but_numeric_gpio_targets_are_rejected() {
 }
 
 #[test]
-fn typed_codec_round_trips_non_sam_targets_and_identity() {
-    let request = Packet {
-        id: id(21),
-        body: Request::Set {
-            target: b"PIO2_3".as_slice(),
-            level: Level::High,
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: request,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"021 LPC SET PIO2_3 HIGH OK?\n");
-    assert_eq!(decoded_request(frame.as_ref()), Ok(request));
-
-    let response = Packet {
-        id: id(22),
-        body: Response::Value {
-            target: b"PIO2_3".as_slice(),
-            level: Level::Low,
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: response,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"022 LPC HYG PIO2_3 LOW :3\n");
-    assert_eq!(decoded_response(frame.as_ref()), Ok(response));
-
-    let status = Packet {
-        id: id(23),
-        body: Response::<&[u8], &[u8]>::Status {
-            identity: b"LPC1115 GPIO",
-        },
-    };
-    let frame = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet: status,
-    })
-    .unwrap();
-    assert_eq!(frame.as_ref(), b"023 LPC IAM LPC1115 GPIO :3\n");
-    assert_eq!(decoded_response(frame.as_ref()), Ok(status));
-}
-
-#[test]
-fn response_terminator_follows_source_and_is_validated_on_decode() {
-    let packet = Packet {
-        id: id(31),
-        body: Response::<&[u8], &[u8]>::Hello,
-    };
-    let sam = Frame::try_from(Message {
-        route: b"SAM".as_slice(),
-        packet,
-    })
-    .unwrap();
-    assert_eq!(sam.as_ref(), b"031 SAM HII <3\n");
-    assert_eq!(decoded_response(sam.as_ref()), Ok(packet));
-
-    let lpc = Frame::try_from(Message {
-        route: b"LPC".as_slice(),
-        packet,
-    })
-    .unwrap();
-    assert_eq!(lpc.as_ref(), b"031 LPC HII :3\n");
-    assert_eq!(decoded_response(lpc.as_ref()), Ok(packet));
-
+fn response_terminator_mismatch_is_rejected() {
     for line in [b"031 SAM HII :3".as_slice(), b"031 LPC HII <3"] {
         assert_eq!(
             decoded_response(line),
@@ -696,59 +605,11 @@ fn response_terminator_follows_source_and_is_validated_on_decode() {
 }
 
 #[test]
-fn version_and_help_wire_examples_are_typed_and_source_aware() {
-    assert_eq!(PROTOCOL_VERSION, 1);
-    assert_eq!(
-        decoded_request(b"041 SAM VER"),
-        Ok(Packet {
-            id: id(41),
-            body: Request::Version,
-        })
-    );
-    assert_eq!(
-        decoded_request(b"042 SAM HLP"),
-        Ok(Packet {
-            id: id(42),
-            body: Request::Help,
-        })
-    );
-    assert_eq!(
-        decoded_response(b"041 SAM VER 1 <3"),
-        Ok(Packet {
-            id: id(41),
-            body: Response::Version { version: 1 },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"042 SAM HLP HAI <3"),
-        Ok(Packet {
-            id: id(42),
-            body: Response::Help {
-                command: Command::Hello,
-            },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"043 LPC VER 1 :3"),
-        Ok(Packet {
-            id: id(43),
-            body: Response::Version { version: 1 },
-        })
-    );
-    assert_eq!(
-        decoded_response(b"044 LPC HLP HLP :3"),
-        Ok(Packet {
-            id: id(44),
-            body: Response::Help {
-                command: Command::Help,
-            },
-        })
-    );
-
+fn every_help_record_fits_and_round_trips_for_each_source_suffix() {
     for source in [b"SAM".as_slice(), b"LPC"] {
         for &command in Command::ALL {
             let packet = Packet {
-                id: id(45),
+                id: id(1),
                 body: Response::<&[u8], &[u8]>::Help { command },
             };
             let frame = Frame::try_from(Message {

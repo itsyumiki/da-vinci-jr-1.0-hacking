@@ -105,6 +105,21 @@ pub struct DecodeError {
     pub kind: DecodeErrorKind,
 }
 
+impl core::fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match (self.id, self.kind) {
+            (Some(id), DecodeErrorKind::Malformed) => write!(f, "malformed packet {id}"),
+            (Some(id), DecodeErrorKind::UnknownCommand) => {
+                write!(f, "unknown command in packet {id}")
+            }
+            (None, DecodeErrorKind::Malformed) => f.write_str("malformed packet"),
+            (None, DecodeErrorKind::UnknownCommand) => f.write_str("unknown command"),
+        }
+    }
+}
+
+impl core::error::Error for DecodeError {}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EncodeError {
     OutputTooSmall,
@@ -112,6 +127,19 @@ pub enum EncodeError {
     InvalidTargetToken,
     InvalidIdentity,
 }
+
+impl core::fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::OutputTooSmall => "encoded packet exceeds frame capacity",
+            Self::InvalidRouteToken => "invalid route token",
+            Self::InvalidTargetToken => "invalid target token",
+            Self::InvalidIdentity => "invalid identity token",
+        })
+    }
+}
+
+impl core::error::Error for EncodeError {}
 
 fn decode_message(line: &[u8]) -> Result<RawMessage<'_>, DecodeError> {
     let (id_token, rest) = next_token(line).ok_or(DecodeError {
@@ -377,15 +405,15 @@ fn encode_request_body<T: AsRef<[u8]>>(
     writer: &mut Writer<'_>,
     body: Request<T>,
 ) -> Result<(), EncodeError> {
-    writer.bytes(request_command(&body).as_ref())?;
     match body {
-        Request::Hello
-        | Request::Status
-        | Request::Map
-        | Request::Bye
-        | Request::Version
-        | Request::Help => {}
+        Request::Hello => writer.bytes(Command::Hello.as_ref())?,
+        Request::Status => writer.bytes(Command::Status.as_ref())?,
+        Request::Map => writer.bytes(Command::Map.as_ref())?,
+        Request::Bye => writer.bytes(Command::Bye.as_ref())?,
+        Request::Version => writer.bytes(Command::Version.as_ref())?,
+        Request::Help => writer.bytes(Command::Help.as_ref())?,
         Request::Direction { target, direction } => {
+            writer.bytes(Command::Direction.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" ")?;
@@ -393,11 +421,13 @@ fn encode_request_body<T: AsRef<[u8]>>(
             writer.bytes(b" OK?")?;
         }
         Request::Get { target } => {
+            writer.bytes(Command::Get.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" OK?")?;
         }
         Request::Set { target, level } => {
+            writer.bytes(Command::Set.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" ")?;
@@ -405,6 +435,7 @@ fn encode_request_body<T: AsRef<[u8]>>(
             writer.bytes(b" OK?")?;
         }
         Request::Pullup { target, state } => {
+            writer.bytes(Command::Pullup.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" ")?;
@@ -412,6 +443,7 @@ fn encode_request_body<T: AsRef<[u8]>>(
             writer.bytes(b" OK?")?;
         }
         Request::Listen { target, state } => {
+            writer.bytes(Command::Listen.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" ")?;
@@ -419,6 +451,7 @@ fn encode_request_body<T: AsRef<[u8]>>(
             writer.bytes(b" OK?")?;
         }
         Request::Query { target, what } => {
+            writer.bytes(Command::Query.as_ref())?;
             writer.bytes(b" ")?;
             writer.target(target.as_ref())?;
             writer.bytes(b" ")?;
@@ -426,23 +459,6 @@ fn encode_request_body<T: AsRef<[u8]>>(
         }
     }
     Ok(())
-}
-
-fn request_command<T>(request: &Request<T>) -> Command {
-    match request {
-        Request::Hello => Command::Hello,
-        Request::Status => Command::Status,
-        Request::Map => Command::Map,
-        Request::Direction { .. } => Command::Direction,
-        Request::Get { .. } => Command::Get,
-        Request::Set { .. } => Command::Set,
-        Request::Pullup { .. } => Command::Pullup,
-        Request::Listen { .. } => Command::Listen,
-        Request::Query { .. } => Command::Query,
-        Request::Bye => Command::Bye,
-        Request::Version => Command::Version,
-        Request::Help => Command::Help,
-    }
 }
 
 fn encode_response<T: AsRef<[u8]>, D: AsRef<[u8]>>(
@@ -607,7 +623,7 @@ fn encode_message_with(
     writer.bytes(b" ")?;
     write_body(&mut writer)?;
     writer.bytes(b"\n")?;
-    Ok(writer.len())
+    Ok(writer.len)
 }
 
 fn next_token(input: &[u8]) -> Option<(&[u8], &[u8])> {
@@ -651,10 +667,6 @@ struct Writer<'a> {
 impl<'a> Writer<'a> {
     fn new(out: &'a mut [u8]) -> Self {
         Self { out, len: 0 }
-    }
-
-    fn len(&self) -> usize {
-        self.len
     }
 
     fn bytes(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {

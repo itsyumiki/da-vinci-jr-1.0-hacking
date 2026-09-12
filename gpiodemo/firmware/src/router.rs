@@ -1,5 +1,5 @@
 use da_vinci_protocol::{
-    Frame, MAX_PACKET_LEN, Message, Packet, RawMessage, RequestId, Response, ResponseError,
+    DecodeError, Frame, Message, Packet, RawMessage, RequestId, Response, ResponseError,
 };
 
 const ROUTE_QUEUE_CAPACITY: usize = 2;
@@ -7,12 +7,11 @@ const ROUTE_QUEUE_CAPACITY: usize = 2;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FrameError {
     WouldBlock,
-    InvalidFrame,
     Down,
 }
 
 pub trait FrameLink {
-    fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError>;
+    fn try_send(&mut self, frame: &Frame) -> Result<(), FrameError>;
     fn try_receive(&mut self) -> Result<Option<Frame>, FrameError>;
 }
 
@@ -43,25 +42,24 @@ impl<'a> Route<'a> {
         self.destinations.contains(&destination)
     }
 
-    fn forward(&mut self, id: RequestId, frame: &[u8]) -> Result<(), RouteFailure> {
+    fn forward(&mut self, id: RequestId, frame: Frame) -> Result<(), RouteFailure> {
         if self.down {
             return Err(RouteFailure::Down);
         }
-        if frame.len() > MAX_PACKET_LEN {
-            return Err(RouteFailure::InvalidFrame);
-        }
         if self.queue.is_empty() {
-            match self.link.try_send(frame) {
+            match self.link.try_send(&frame) {
                 Ok(()) => return Ok(()),
                 Err(FrameError::WouldBlock) => {}
-                Err(FrameError::InvalidFrame) => return Err(RouteFailure::InvalidFrame),
                 Err(FrameError::Down) => {
                     self.down = true;
                     return Err(RouteFailure::Down);
                 }
             }
         }
-        self.queue.push(id, frame).map_err(|_| RouteFailure::Busy)
+        self.queue
+            .push(id, frame)
+            .then_some(())
+            .ok_or(RouteFailure::Busy)
     }
 
     fn poll_send(&mut self) -> Option<Packet<Response<&'static [u8], &'static [u8]>>> {
@@ -75,19 +73,12 @@ impl<'a> Route<'a> {
                 }),
             });
         }
-        match self.link.try_send(queued.frame()) {
+        match self.link.try_send(&queued.frame) {
             Ok(()) => {
                 self.queue.pop();
                 None
             }
             Err(FrameError::WouldBlock) => None,
-            Err(FrameError::InvalidFrame) => {
-                self.queue.pop();
-                Some(Packet {
-                    id: queued.id,
-                    body: Response::Error(ResponseError::BadPacket),
-                })
-            }
             Err(FrameError::Down) => {
                 self.down = true;
                 self.queue.pop();
@@ -107,7 +98,7 @@ impl<'a> Route<'a> {
         }
         match self.link.try_receive() {
             Ok(Some(frame)) => Some(frame),
-            Ok(None) | Err(FrameError::WouldBlock | FrameError::InvalidFrame) => None,
+            Ok(None) | Err(FrameError::WouldBlock) => None,
             Err(FrameError::Down) => {
                 self.down = true;
                 None
@@ -119,7 +110,6 @@ impl<'a> Route<'a> {
 #[derive(Clone, Copy)]
 enum RouteFailure {
     Busy,
-    InvalidFrame,
     Down,
 }
 
@@ -129,6 +119,8 @@ pub struct Router<'a, const N: usize> {
     send_cursor: usize,
     receive_cursor: usize,
 }
+
+type DispatchResult<'frame, T> = Result<Option<Packet<Response<T, &'frame [u8]>>>, DecodeError>;
 
 impl<'a, const N: usize> Router<'a, N> {
     pub const fn new(local_route: &'static [u8], routes: [Route<'a>; N]) -> Self {
@@ -146,15 +138,15 @@ impl<'a, const N: usize> Router<'a, N> {
 
     pub fn dispatch<'frame, F, T>(
         &mut self,
-        frame: &'frame [u8],
-        envelope: RawMessage<'frame>,
+        frame: &'frame Frame,
         local: F,
-    ) -> Option<Packet<Response<T, &'frame [u8]>>>
+    ) -> DispatchResult<'frame, T>
     where
         F: FnOnce(RawMessage<'frame>) -> Packet<Response<T, &'frame [u8]>>,
     {
+        let envelope = RawMessage::try_from(frame)?;
         if envelope.route == self.local_route {
-            return Some(local(envelope));
+            return Ok(Some(local(envelope)));
         }
         let Message { route, packet } = envelope;
 
@@ -163,13 +155,13 @@ impl<'a, const N: usize> Router<'a, N> {
             .iter_mut()
             .find(|route_link| route_link.reaches(route))
         else {
-            return Some(Packet {
+            return Ok(Some(Packet {
                 id: packet.id,
                 body: Response::Error(ResponseError::NoRoute { destination: route }),
-            });
+            }));
         };
 
-        match route_link.forward(packet.id, frame) {
+        Ok(match route_link.forward(packet.id, *frame) {
             Ok(()) => None,
             Err(RouteFailure::Busy) => Some(Packet {
                 id: packet.id,
@@ -177,17 +169,13 @@ impl<'a, const N: usize> Router<'a, N> {
                     next_hop: route_link.next_hop,
                 }),
             }),
-            Err(RouteFailure::InvalidFrame) => Some(Packet {
-                id: packet.id,
-                body: Response::Error(ResponseError::BadPacket),
-            }),
             Err(RouteFailure::Down) => Some(Packet {
                 id: packet.id,
                 body: Response::Error(ResponseError::RouteDown {
                     next_hop: route_link.next_hop,
                 }),
             }),
-        }
+        })
     }
 
     pub fn poll_routes(&mut self) -> Option<Packet<Response<&'static [u8], &'static [u8]>>> {
@@ -226,12 +214,6 @@ struct QueuedFrame {
     frame: Frame,
 }
 
-impl QueuedFrame {
-    fn frame(&self) -> &[u8] {
-        self.frame.as_ref()
-    }
-}
-
 struct FrameQueue {
     frames: [Option<QueuedFrame>; ROUTE_QUEUE_CAPACITY],
     head: usize,
@@ -251,17 +233,14 @@ impl FrameQueue {
         self.len == 0
     }
 
-    fn push(&mut self, id: RequestId, frame: &[u8]) -> Result<(), ()> {
+    fn push(&mut self, id: RequestId, frame: Frame) -> bool {
         if self.len == ROUTE_QUEUE_CAPACITY {
-            return Err(());
+            return false;
         }
         let index = (self.head + self.len) % ROUTE_QUEUE_CAPACITY;
-        self.frames[index] = Some(QueuedFrame {
-            id,
-            frame: Frame::try_from(frame).map_err(|_| ())?,
-        });
+        self.frames[index] = Some(QueuedFrame { id, frame });
         self.len += 1;
-        Ok(())
+        true
     }
 
     fn front(&self) -> Option<&QueuedFrame> {
@@ -292,7 +271,6 @@ mod tests {
     enum SendMode {
         Ready,
         Blocked,
-        InvalidFrame,
         Down,
     }
 
@@ -323,14 +301,13 @@ mod tests {
     }
 
     impl FrameLink for FakeLink {
-        fn try_send(&mut self, frame: &[u8]) -> Result<(), FrameError> {
+        fn try_send(&mut self, frame: &Frame) -> Result<(), FrameError> {
             match self.mode.get() {
                 SendMode::Ready => {
-                    self.sent.borrow_mut().push(frame.to_vec());
+                    self.sent.borrow_mut().push(frame.as_ref().to_vec());
                     Ok(())
                 }
                 SendMode::Blocked => Err(FrameError::WouldBlock),
-                SendMode::InvalidFrame => Err(FrameError::InvalidFrame),
                 SendMode::Down => Err(FrameError::Down),
             }
         }
@@ -349,8 +326,8 @@ mod tests {
         incoming: Rc<RefCell<VecDeque<Vec<u8>>>>,
     }
 
-    fn envelope(frame: &[u8]) -> RawMessage<'_> {
-        RawMessage::try_from(frame).unwrap()
+    fn frame(bytes: &[u8]) -> Frame {
+        Frame::try_from(bytes).unwrap()
     }
 
     fn request_id(raw: u16) -> RequestId {
@@ -359,20 +336,22 @@ mod tests {
 
     fn dispatch<'a, const N: usize>(
         router: &mut Router<'_, N>,
-        frame: &'a [u8],
+        frame: &'a Frame,
     ) -> Option<Packet<Response<&'a [u8], &'a [u8]>>> {
-        router.dispatch(frame, envelope(frame), |message| Packet {
-            id: message.packet.id,
-            body: Response::Hello,
-        })
+        router
+            .dispatch(frame, |message| Packet {
+                id: message.packet.id,
+                body: Response::Hello,
+            })
+            .unwrap()
     }
 
     #[test]
     fn dispatches_local_body_without_route_knowledge_in_handler() {
         let mut router = Router::new(b"SAM", []);
-        let frame = b"010 SAM HAI\n";
+        let frame = frame(b"010 SAM HAI\n");
         let response = router
-            .dispatch(frame, envelope(frame), |message| {
+            .dispatch(&frame, |message| {
                 assert_eq!(message.packet.id, request_id(10));
                 assert_eq!(message.packet.body, b"HAI");
                 Packet {
@@ -380,6 +359,7 @@ mod tests {
                     body: Response::<&[u8], &[u8]>::Hello,
                 }
             })
+            .unwrap()
             .unwrap();
         assert_eq!(
             response,
@@ -393,13 +373,16 @@ mod tests {
     #[test]
     fn missing_routes_return_local_no_route_errors() {
         let mut router = Router::new(b"SAM", []);
-        for frame in [b"011 LPC HAI\n".as_slice(), b"012 ABC HAI\n"] {
-            let destination = envelope(frame).route;
+        for bytes in [b"011 LPC HAI\n".as_slice(), b"012 ABC HAI\n"] {
+            let frame = frame(bytes);
+            let envelope = RawMessage::try_from(&frame).unwrap();
             assert_eq!(
-                dispatch(&mut router, frame),
+                dispatch(&mut router, &frame),
                 Some(Packet {
-                    id: envelope(frame).packet.id,
-                    body: Response::Error(ResponseError::NoRoute { destination }),
+                    id: envelope.packet.id,
+                    body: Response::Error(ResponseError::NoRoute {
+                        destination: envelope.route,
+                    }),
                 })
             );
         }
@@ -409,13 +392,13 @@ mod tests {
     fn route_can_reach_multiple_destinations_without_rewriting_frames() {
         let (mut link, control) = FakeLink::new(SendMode::Ready);
         let mut router = Router::new(b"SAM", [Route::new(b"LPC", &[b"LPC", b"ABC"], &mut link)]);
-        let lpc = b"021 LPC HAI\n";
-        let abc = b"022 ABC GET PIO2_3 OK?\n";
-        assert_eq!(dispatch(&mut router, lpc), None);
-        assert_eq!(dispatch(&mut router, abc), None);
+        let lpc = frame(b"021 LPC HAI\n");
+        let abc = frame(b"022 ABC GET PIO2_3 OK?\n");
+        assert_eq!(dispatch(&mut router, &lpc), None);
+        assert_eq!(dispatch(&mut router, &abc), None);
         assert_eq!(
             control.sent.borrow().as_slice(),
-            [lpc.as_slice(), abc.as_slice()]
+            [lpc.as_ref(), abc.as_ref()]
         );
     }
 
@@ -431,12 +414,13 @@ mod tests {
             ],
         );
         for id in 31..=32 {
-            let frame = std::format!("{id:03} LPC HAI\n").into_bytes();
+            let bytes = std::format!("{id:03} LPC HAI\n").into_bytes();
+            let frame = frame(&bytes);
             assert_eq!(dispatch(&mut router, &frame), None);
         }
-        let busy = b"033 LPC HAI\n";
+        let busy = frame(b"033 LPC HAI\n");
         assert_eq!(
-            dispatch(&mut router, busy),
+            dispatch(&mut router, &busy),
             Some(Packet {
                 id: request_id(33),
                 body: Response::Error(ResponseError::RouteBusy {
@@ -445,9 +429,9 @@ mod tests {
             })
         );
 
-        let other = b"034 XYZ HAI\n";
-        assert_eq!(dispatch(&mut router, other), None);
-        assert_eq!(ready_control.sent.borrow().as_slice(), [other.as_slice()]);
+        let other = frame(b"034 XYZ HAI\n");
+        assert_eq!(dispatch(&mut router, &other), None);
+        assert_eq!(ready_control.sent.borrow().as_slice(), [other.as_ref()]);
 
         stalled_control.mode.set(SendMode::Ready);
         assert_eq!(router.poll_routes(), None);
@@ -456,31 +440,12 @@ mod tests {
     }
 
     #[test]
-    fn invalid_frame_does_not_mark_route_down() {
-        let (mut link, control) = FakeLink::new(SendMode::InvalidFrame);
-        let mut router = Router::new(b"SAM", [Route::new(b"LPC", &[b"LPC"], &mut link)]);
-        let invalid = b"040 LPC HAI\n";
-        assert_eq!(
-            dispatch(&mut router, invalid),
-            Some(Packet {
-                id: request_id(40),
-                body: Response::Error(ResponseError::BadPacket),
-            })
-        );
-
-        control.mode.set(SendMode::Ready);
-        let valid = b"041 LPC HAI\n";
-        assert_eq!(dispatch(&mut router, valid), None);
-        assert_eq!(control.sent.borrow().as_slice(), [valid.as_slice()]);
-    }
-
-    #[test]
     fn hard_link_failure_is_route_down_not_busy() {
         let (mut link, _) = FakeLink::new(SendMode::Down);
         let mut router = Router::new(b"SAM", [Route::new(b"LPC", &[b"LPC"], &mut link)]);
-        let frame = b"041 LPC HAI\n";
+        let frame = frame(b"041 LPC HAI\n");
         assert_eq!(
-            dispatch(&mut router, frame),
+            dispatch(&mut router, &frame),
             Some(Packet {
                 id: request_id(41),
                 body: Response::Error(ResponseError::RouteDown {
@@ -494,8 +459,8 @@ mod tests {
     fn queued_frame_that_discovers_link_failure_returns_its_original_request_id() {
         let (mut link, control) = FakeLink::new(SendMode::Blocked);
         let mut router = Router::new(b"SAM", [Route::new(b"LPC", &[b"LPC"], &mut link)]);
-        let frame = b"051 LPC HAI\n";
-        assert_eq!(dispatch(&mut router, frame), None);
+        let frame = frame(b"051 LPC HAI\n");
+        assert_eq!(dispatch(&mut router, &frame), None);
         control.mode.set(SendMode::Down);
         assert_eq!(
             router.poll_routes(),
@@ -526,21 +491,22 @@ mod tests {
     fn two_hop_chain_preserves_request_and_response_frames() {
         let (mut sam_to_lpc, sam_control) = FakeLink::new(SendMode::Ready);
         let (mut lpc_to_abc, lpc_control) = FakeLink::new(SendMode::Ready);
-        let request = b"071 ABC HAI\n";
+        let request = frame(b"071 ABC HAI\n");
 
         {
             let mut sam = Router::new(
                 b"SAM",
                 [Route::new(b"LPC", &[b"LPC", b"ABC"], &mut sam_to_lpc)],
             );
-            assert_eq!(dispatch(&mut sam, request), None);
+            assert_eq!(dispatch(&mut sam, &request), None);
         }
         let forwarded = sam_control.sent.borrow()[0].clone();
+        let forwarded = frame(&forwarded);
         {
             let mut lpc = Router::new(b"LPC", [Route::new(b"ABC", &[b"ABC"], &mut lpc_to_abc)]);
             assert_eq!(dispatch(&mut lpc, &forwarded), None);
         }
-        assert_eq!(lpc_control.sent.borrow().as_slice(), [request.as_slice()]);
+        assert_eq!(lpc_control.sent.borrow().as_slice(), [request.as_ref()]);
 
         let response = b"071 ABC HII <3\n".to_vec();
         sam_control

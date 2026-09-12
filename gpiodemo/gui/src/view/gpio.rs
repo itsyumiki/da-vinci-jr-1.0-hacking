@@ -1,4 +1,4 @@
-use da_vinci_protocol::{Level, PinCapabilities};
+use da_vinci_protocol::Level;
 use iced::{
     Background, Border, Element, Length,
     alignment::{Horizontal, Vertical},
@@ -7,8 +7,8 @@ use iced::{
 
 use super::{CONTROL_TEXT_SIZE, danger_native_button, native_button};
 use crate::{
-    app::{App, BankGroup, MODES, Message},
-    session::{BankKey, ListenerState, Mode, PinInfo, PinKey, PinState},
+    app::{App, BankGroup, Message},
+    session::{BankKey, ListenerState, Mode, PinKey, PinState},
     theme::{HIGH_BG, LOW_BG, UI_TEXT, UNSET_BG, input_style, panel_style, selected_tab_button},
 };
 
@@ -186,8 +186,8 @@ impl App {
         show_bank_name: bool,
     ) -> iced::widget::Column<'_, Message> {
         let mut column = column![].spacing(2);
-        if show_bank_name && let Some(info) = self.session.bank_info(bank) {
-            column = column.push(text(info.token.clone()).size(14));
+        if show_bank_name && let Some(token) = self.session.bank_token(bank) {
+            column = column.push(text(token.to_owned()).size(14));
         }
         column = column.push(pin_header());
         for (pin, info) in self.session.pins(self.selected_route_key()) {
@@ -206,7 +206,7 @@ impl App {
         let Some(info) = self.session.pin_info(pin) else {
             return text("Unknown pin").into();
         };
-        let name = pin_cell(text(pin_display(info)).size(12), PIN_NAME_SHARE);
+        let name = pin_cell(text(info.to_string()).size(12), PIN_NAME_SHARE);
         if !info.capabilities.available() {
             return row![
                 name,
@@ -239,9 +239,11 @@ impl App {
             .style(input_style)
             .into()
         } else {
-            pick_list(pin_modes(info.capabilities), state.mode, move |mode| {
-                Message::ModeSelected(pin, mode)
-            })
+            pick_list(
+                Mode::available_for(info.capabilities),
+                state.mode,
+                move |mode| Message::ModeSelected(pin, mode),
+            )
             .placeholder("UNSET")
             .text_size(PIN_CONTROL_TEXT_SIZE)
             .padding([5, 8])
@@ -267,20 +269,22 @@ impl App {
                 text("").into()
             };
 
-        let listen: Element<'_, Message> = if state.mode.is_some_and(Mode::is_input)
-            && info.capabilities.input()
-        {
-            let label = if matches!(state.listener, ListenerState::On | ListenerState::Disabling) {
-                "Stop"
+        let listen: Element<'_, Message> =
+            if state.mode.is_some_and(Mode::is_input) && info.capabilities.input() {
+                let label = if matches!(
+                    state.listener,
+                    ListenerState::On { .. } | ListenerState::Disabling { .. }
+                ) {
+                    "Stop"
+                } else {
+                    "Listen"
+                };
+                native_button(label)
+                    .on_press_maybe((!state.listener.is_pending()).then_some(Message::Listen(pin)))
+                    .into()
             } else {
-                "Listen"
+                text("").into()
             };
-            native_button(label)
-                .on_press_maybe((!state.listener.is_pending()).then_some(Message::Listen(pin)))
-                .into()
-        } else {
-            text("").into()
-        };
 
         row![
             name,
@@ -294,21 +298,6 @@ impl App {
         .height(Length::Fixed(ROW_HEIGHT))
         .align_y(iced::Alignment::Center)
         .into()
-    }
-}
-
-fn pin_modes(capabilities: PinCapabilities) -> &'static [Mode] {
-    match (
-        capabilities.input(),
-        capabilities.pull_up(),
-        capabilities.output(),
-    ) {
-        (false, _, false) => &[],
-        (true, false, false) => &[Mode::Input],
-        (true, true, false) => &[Mode::Input, Mode::InputPullup],
-        (false, _, true) => &[Mode::Output],
-        (true, false, true) => &[Mode::Input, Mode::Output],
-        (true, true, true) => &MODES,
     }
 }
 
@@ -394,31 +383,4 @@ fn level_box(level: Option<Level>, pending: bool) -> Element<'static, Message> {
             ..Default::default()
         })
         .into()
-}
-
-pub(super) fn pin_display(pin: &PinInfo) -> String {
-    match pin.package_pin {
-        Some(package_pin) => format!("{} ({package_pin})", pin.token),
-        None => pin.token.clone(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pin_modes_follow_discovered_capabilities() {
-        assert_eq!(pin_modes(PinCapabilities::NONE), []);
-        assert_eq!(pin_modes(PinCapabilities::INPUT), [Mode::Input]);
-        assert_eq!(
-            pin_modes(PinCapabilities::INPUT_PULLUP),
-            [Mode::Input, Mode::InputPullup]
-        );
-        assert_eq!(
-            pin_modes(PinCapabilities::new(false, true, false)),
-            [Mode::Output]
-        );
-        assert_eq!(pin_modes(PinCapabilities::GPIO), MODES);
-    }
 }

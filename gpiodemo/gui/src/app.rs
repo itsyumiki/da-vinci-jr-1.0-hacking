@@ -13,7 +13,7 @@ use crate::{
         BankKey, DeviceEvent, DeviceSession, Event as ConnectionEvent, Mode, PinKey,
         Request as RoutedRequest, ResponseError, RouteKey, Target as RoutedTarget,
     },
-    view::{self, pin_display},
+    view,
 };
 
 const MAX_IO_EVENTS_PER_TICK: usize = 256;
@@ -21,8 +21,6 @@ const MAX_COMMAND_HISTORY: usize = 200;
 const ROUTES: [&str; 2] = ["SAM", "LPC"];
 
 type Request = RoutedRequest;
-
-pub(super) const MODES: [Mode; 3] = [Mode::Input, Mode::InputPullup, Mode::Output];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ScopeChoice {
@@ -487,19 +485,13 @@ impl App {
         self.selected_route.key
     }
 
-    pub(super) fn bulk_modes(&self) -> Vec<Mode> {
+    pub(super) fn bulk_modes(&self) -> &'static [Mode] {
         let route = self.selected_route_key();
         let pins = self.session.target_pins(route, self.bulk_scope.target);
-        MODES
-            .into_iter()
-            .filter(|mode| {
-                pins.iter().any(|&pin| {
-                    self.session
-                        .pin_info(pin)
-                        .is_some_and(|info| mode.supported_by(info.capabilities))
-                })
-            })
-            .collect()
+        Mode::available_for_any(
+            pins.into_iter()
+                .filter_map(|pin| self.session.pin_info(pin).map(|info| info.capabilities)),
+        )
     }
 
     fn normalize_bulk_mode(&mut self) {
@@ -514,9 +506,9 @@ impl App {
     fn sync_route_ui(&mut self) {
         let route = self.selected_route_key();
         self.bulk_scopes = std::iter::once(ScopeChoice::all())
-            .chain(self.session.banks(route).map(|(bank, info)| ScopeChoice {
+            .chain(self.session.banks(route).map(|(bank, token)| ScopeChoice {
                 target: RoutedTarget::Bank(bank),
-                label: info.token.clone(),
+                label: token.to_owned(),
             }))
             .collect();
         self.bulk_scope = ScopeChoice::all();
@@ -530,7 +522,7 @@ impl App {
         let discovered: Vec<_> = self
             .session
             .banks(route)
-            .map(|(key, info)| (key, info.token.clone()))
+            .map(|(key, token)| (key, token.to_owned()))
             .collect();
         let Some(specs) = self
             .route_layout
@@ -699,11 +691,8 @@ impl App {
                 );
             }
             DeviceEvent::Help { route, command } => {
-                self.device_status = format!(
-                    "{} supports {}",
-                    self.session.route_name(route),
-                    String::from_utf8_lossy(command.as_ref())
-                );
+                self.device_status =
+                    format!("{} supports {command}", self.session.route_name(route));
             }
             DeviceEvent::MapReady { route } => {
                 if route == self.selected_route_key() {
@@ -764,7 +753,7 @@ impl App {
     fn routed_pin_display(&self, pin: PinKey) -> String {
         self.session
             .pin_info(pin)
-            .map_or_else(|| "unknown pin".into(), pin_display)
+            .map_or_else(|| "unknown pin".into(), ToString::to_string)
     }
 
     fn push_log(&mut self, text: String) {
@@ -981,7 +970,7 @@ mod tests {
             vec!["GPIOX".into(), "GPIOY".into()],
             vec![
                 ("X0".into(), 0, 0, PinCapabilities::INPUT_PULLUP),
-                ("Y7".into(), 1, 7, PinCapabilities::new(false, true, false)),
+                ("Y7".into(), 1, 7, PinCapabilities::OUTPUT),
             ],
         );
 
