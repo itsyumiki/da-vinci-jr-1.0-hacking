@@ -1,8 +1,8 @@
-# ESP32 Pinout
+# Wifi Chip Pinout
 
-There is a place on the main board for an ESP32-WROOM-32E module. This is its pin mapping.
+There is a place on the main board for a Wifi module. This is its pin mapping.
 
-Note: I started to doubt it being an ESP32 due to missing power connections.
+Note: This chip is NOT an ESP32. Its exact variant is not verified, but it might be a GainSpan GS2100MIE. Either way, we can use these pins for connecting an ESP12 module over SPI.
 
 ## Side 1
 
