@@ -29,3 +29,44 @@ New pinouts to sync later:
 - PC15 - LPC reset
 
 PE5/PE1 need to fix mismatch (which one is the up button)
+
+###
+
+RST
+.
+ENABLE
+.
+GPIO14
+GPIO12
+GPIO13
+VCC
+;
+GND
+GPIO15
+.
+GPIO0
+GPIO4
+.
+.
+.
+
+###
+
+PD24
+.
+.
+GND
+;
+.
+.
+.
+.
+PB02
+PA13 MOSI
+PA14 SCLK
+PA12 MISO
+PE03
+.
+;
+.
+PA26

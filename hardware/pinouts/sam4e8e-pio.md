@@ -19,12 +19,12 @@ We have 5 PIOs available, PA through PE.
 | PA2  | BZ1          | Buzzer        | ❌      | ✅        |
 | PA3  | U2 SDA       | Hotend chip   | ❌      | ✅        |
 | PA4  | U2 SCL       | Hotend chip   | ❌      | ✅        |
-| PA5  | U17 PIO1_7   | UART RXD      | ❌      | ✅        |
-| PA6  | U17 PIO1_6   | UART TXD      | ❌      | ✅        |
+| PA5  | U17 PIO1_7   | UART1 RXD     | ❌      | ✅        |
+| PA6  | U17 PIO1_6   | UART1 TXD     | ❌      | ✅        |
 | PA7  | Y2 XIN32     | 32kHz crystal | ✅      | ❌        |
 | PA8  | Y2 XOUT32    | 32kHz crystal | ✅      | ❌        |
-| PA9  | J10 4        | UART header   | ❌      | ❌        |
-| PA10 | J10 1        | UART header   | ❌      | ❌        |
+| PA9  | J10 4        | UART0 header  | ❌      | ❌        |
+| PA10 | J10 1        | UART0 header  | ❌      | ❌        |
 | PA11 | U5 1         | Flash CS      | ❌      | ❌        |
 | PA12 | U18 GPIO8    | Unknown       | ❌      | ✅        |
 | PA13 | U18 GPIO6    | Unknown       | ❌      | ✅        |

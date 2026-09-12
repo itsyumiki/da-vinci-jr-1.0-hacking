@@ -29,32 +29,34 @@ There are 2 extra pins on this side, and they are not listed here as they are N/
 
 | Pin | Pin Desc | Connected To | Description   | Traced? | Verified? |
 | --- | -------- | ------------ | ------------- | ------- | --------- |
-| 15  | GND      | -            | Not connected | ✅      | ❌        |
-| 16  | GPIO13   | -            | Not connected | ✅      | ❌        |
-| 17  | GPIO9    | -            | Not connected | ✅      | ❌        |
-| 18  | GPIO10   | -            | Not connected | ✅      | ❌        |
-| 19  | GPIO11   | PB02         | Unknown       | ❌      | ✅        |
-| 20  | GPIO6    | PA13         | Unknown       | ❌      | ✅        |
-| 21  | GPIO7    | PA14         | Unknown       | ❌      | ✅        |
-| 22  | GPIO8    | PA12         | Unknown       | ❌      | ✅        |
-| 23  | GPIO15   | PE03         | Unknown       | ❌      | ✅        |
-| 24  | GPIO2    | -            | Not connected | ✅      | ❌        |
+| 15  | GND      | GND          | Ground        | ✅      | ❌        |
+| 16  | GND      | -            | Not connected | ✅      | ❌        |
+| 17  | GPIO13   | -            | Not connected | ✅      | ❌        |
+| 18  | GPIO9    | -            | Not connected | ✅      | ❌        |
+| 19  | GPIO10   | -            | Not connected | ✅      | ❌        |
+| 20  | GPIO11   | PB02         | Unknown       | ❌      | ✅        |
+| 21  | GPIO6    | PA13         | Unknown       | ❌      | ✅        |
+| 22  | GPIO7    | PA14         | Unknown       | ❌      | ✅        |
+| 23  | GPIO8    | PA12         | Unknown       | ❌      | ✅        |
+| 24  | GPIO15   | PE03         | Unknown       | ❌      | ✅        |
+| 25  | GPIO2    | -            | Not connected | ✅      | ❌        |
+| 26  | GND      | -            | Not connected | ✅      | ❌        |
 
 ## Side 3
 
 | Pin | Pin Desc | Connected To | Description   | Traced? | Verified? |
 | --- | -------- | ------------ | ------------- | ------- | --------- |
-| 25  | GPIO0    | J117 1       |               | ✅      | ❌        |
-| 26  | GPIO4    | PA26 J118 3  | Unknown       | ✅      | ✅        |
-| 27  | GPIO16   | J117 4       |               | ✅      | ❌        |
-| 28  | GPIO17   | -            | Not connected | ✅      | ❌        |
-| 29  | GPIO5    | J118 1       | Unknown       | ✅      | ❌        |
-| 30  | GPIO18   | -            | Not connected | ✅      | ❌        |
-| 31  | GPIO19   | -            | Not connected | ✅      | ❌        |
-| 32  | NC       | -            | Not connected | ✅      | ❌        |
-| 33  | GPIO21   | -            | Not connected | ✅      | ❌        |
-| 34  | GPIO3    | -            | Not connected | ✅      | ❌        |
-| 35  | GPIO1    | -            | Not connected | ✅      | ❌        |
-| 36  | GPIO22   | -            | Not connected | ✅      | ❌        |
-| 37  | GPIO23   | -            | Not connected | ✅      | ❌        |
-| 38  | GND      | GND          | Ground        | ✅      | ❌        |
+| 27  | GPIO0    | J117 1       |               | ✅      | ❌        |
+| 28  | GPIO4    | PA26 J118 3  | Unknown       | ✅      | ✅        |
+| 29  | GPIO16   | J117 4       |               | ✅      | ❌        |
+| 30  | GPIO17   | -            | Not connected | ✅      | ❌        |
+| 31  | GPIO5    | J118 1       | Unknown       | ✅      | ❌        |
+| 32  | GPIO18   | -            | Not connected | ✅      | ❌        |
+| 33  | GPIO19   | -            | Not connected | ✅      | ❌        |
+| 34  | NC       | -            | Not connected | ✅      | ❌        |
+| 35  | GPIO21   | -            | Not connected | ✅      | ❌        |
+| 36  | GPIO3    | -            | Not connected | ✅      | ❌        |
+| 37  | GPIO1    | -            | Not connected | ✅      | ❌        |
+| 38  | GPIO22   | -            | Not connected | ✅      | ❌        |
+| 39  | GPIO23   | -            | Not connected | ✅      | ❌        |
+| 40  | GND      | GND          | Ground        | ✅      | ❌        |

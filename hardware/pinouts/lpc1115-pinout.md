@@ -14,7 +14,7 @@
 | 01  | PIO2_6     | -            | Not connected          | ❌      | ✅        |
 | 02  | PIO2_0     | -            | Not connected          | ❌      | ✅        |
 | 03  | PIO0_0/RST | ?            | Unknown                | ❌      | ❌        |
-| 04  | PIO0_1     | ?            | Unknown                | ❌      | ❌        |
+| 04  | PIO0_1/ISP | ?            | Unknown                | ❌      | ❌        |
 | 05  | VSS        | GND          | Ground                 | ✅      | ❌        |
 | 06  | XTALIN     | Y4 1 XTAL1   | 12MHz Crystal          | ✅      | ❌        |
 | 07  | XTALOUT    | Y4 2 XTAL2   | 12MHz Crystal          | ✅      | ❌        |
