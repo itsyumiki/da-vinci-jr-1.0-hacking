@@ -26,11 +26,11 @@ We have 5 PIOs available, PA through PE.
 | PA9  |              |             | ❌      | ❌        |
 | PA10 |              |             | ❌      | ❌        |
 | PA11 |              |             | ❌      | ❌        |
-| PA12 |              |             | ❌      | ❌        |
-| PA13 |              |             | ❌      | ❌        |
-| PA14 |              |             | ❌      | ❌        |
+| PA12 | U18 GPIO8    | Unknown     | ❌      | ✅        |
+| PA13 | U18 GPIO6    | Unknown     | ❌      | ✅        |
+| PA14 | U18 GPIO7    | Unknown     | ❌      | ✅        |
 | PA15 |              |             | ❌      | ❌        |
-| PA16 |              |             | ❌      | ❌        |
+| PA16 | J120 1       | WIFI Panel  | ❌      | ✅        |
 | PA17 | SW5          | Enter btn   | ❌      | ✅        |
 | PA18 |              |             | ❌      | ❌        |
 | PA19 |              |             | ❌      | ❌        |
@@ -53,7 +53,7 @@ We have 5 PIOs available, PA through PE.
 | ---- | ------------ | ----------- | ------- | --------- |
 | PB0  |              |             |         |           |
 | PB1  |              |             |         |           |
-| PB2  |              |             |         |           |
+| PB2  | U18 GPIO11   | Unknown     | ❌      | ✅        |
 | PB3  | SW4          | Left btn    | ❌      | ✅        |
 | PB4  |              |             |         |           |
 | PB5  |              |             |         |           |
@@ -65,7 +65,7 @@ We have 5 PIOs available, PA through PE.
 | PB11 |              |             |         |           |
 | PB12 |              |             |         |           |
 | PB13 |              |             |         |           |
-| PB14 |              |             |         |           |
+| PB14 | J7 LASER L   | Left laser  | ❌      | ✅        |
 
 ## PIO C
 
@@ -88,14 +88,14 @@ We have 5 PIOs available, PA through PE.
 | PC14 |              |             |         |           |
 | PC15 |              |             |         |           |
 | PC16 |              |             |         |           |
-| PC17 |              |             |         |           |
+| PC17 | 3dLED 4      | 3D led      | ❌      | ✅        |
 | PC18 | LCD RS       | RS line     | ❌      | ✅        |
 | PC19 | Y endstop    | Y endstop   | ❌      | ✅        |
 | PC20 | Z step       | Z step      | ❌      | ✅        |
 | PC21 |              |             |         |           |
 | PC22 | Y step       | Y step      | ❌      | ✅        |
 | PC23 | X step       | X step      | ❌      | ✅        |
-| PC24 |              |             |         |           |
+| PC24 | J8 LASER R   | Right laser | ❌      | ✅        |
 | PC25 | 3D enable    | 3D enable   | ❌      | ✅        |
 | PC26 |              |             |         |           |
 | PC27 |              |             |         |           |
@@ -123,21 +123,21 @@ We have 5 PIOs available, PA through PE.
 | PD12 |              |             |         |           |
 | PD13 | E2 enable    | E2 enable   | ❌      | ✅        |
 | PD14 |              |             |         |           |
-| PD15 |              |             |         |           |
+| PD15 | 3dLED 3      | 3D led      | ❌      | ✅        |
 | PD16 | E1 enable    | E1 enable   | ❌      | ✅        |
 | PD17 | E1 dir       | E1 dir      | ❌      | ✅        |
 | PD18 | E2 dir       | E2 dir      | ❌      | ✅        |
 | PD19 |              |             |         |           |
 | PD20 |              |             |         |           |
-| PD21 |              |             |         |           |
+| PD21 | J120 4       | WIFI Panel  | ❌      | ✅        |
 | PD22 |              |             |         |           |
-| PD23 | J5           | Top lamp    |         | ✅        |
-| PD24 |              |             |         |           |
+| PD23 | J5           | Top lamp    | ❌      | ✅        |
+| PD24 | U18 GPIO26   | Unknown     | ❌      | ✅        |
 | PD25 |              |             |         |           |
 | PD26 |              |             |         |           |
-| PD27 | J119         | Bottom lamp |         | ✅        |
+| PD27 | J119         | Bottom lamp | ❌      | ✅        |
 | PD28 |              |             |         |           |
-| PD29 |              |             |         |           |
+| PD29 | J24 1        | Top home    |         | ✅        |
 | PD30 | SW6          | Home btn    | ❌      | ✅        |
 | PD31 |              |             |         |           |
 
@@ -148,6 +148,6 @@ We have 5 PIOs available, PA through PE.
 | PE0 |              |             |         |           |
 | PE1 | SW1          | Up btn      | ❌      | ✅        |
 | PE2 | Y dir        | Y dir       | ❌      | ✅        |
-| PE3 |              |             |         |           |
+| PE3 | U18 GPIO15   | Unknown     | ❌      | ✅        |
 | PE4 | SW3          | Right btn   | ❌      | ✅        |
 | PE5 |              |             |         |           |

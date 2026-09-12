@@ -18,7 +18,7 @@ Note: I started to doubt it being an ESP32 due to missing power connections.
 | 08  | GPIO32   | -            | Not connected   | ✅      | ❌        |
 | 09  | GPIO33   | -            | Not connected   | ✅      | ❌        |
 | 10  | GPIO25   | -            | Not connected   | ✅      | ❌        |
-| 11  | GPIO26   | PD24         |                 | ✅      | ❌        |
+| 11  | GPIO26   | PD24         | Unknown         | ❌      | ✅        |
 | 12  | GPIO27   | GND          | Ground via R289 | ✅      | ❌        |
 | 13  | GPIO14   | -            | Not connected   | ✅      | ❌        |
 | 14  | GPIO12   | GND          | Ground          | ✅      | ❌        |
@@ -33,11 +33,11 @@ There are 2 extra pins on this side, and they are not listed here as they are N/
 | 16  | GPIO13   | -            | Not connected | ✅      | ❌        |
 | 17  | GPIO9    | -            | Not connected | ✅      | ❌        |
 | 18  | GPIO10   | -            | Not connected | ✅      | ❌        |
-| 19  | GPIO11   | PB02         |               | ✅      | ❌        |
-| 20  | GPIO6    | PA13         |               | ✅      | ❌        |
-| 21  | GPIO7    | PA14         |               | ✅      | ❌        |
-| 22  | GPIO8    | PA12         |               | ✅      | ❌        |
-| 23  | GPIO15   | PE03         |               | ✅      | ❌        |
+| 19  | GPIO11   | PB02         | Unknown       | ❌      | ✅        |
+| 20  | GPIO6    | PA13         | Unknown       | ❌      | ✅        |
+| 21  | GPIO7    | PA14         | Unknown       | ❌      | ✅        |
+| 22  | GPIO8    | PA12         | Unknown       | ❌      | ✅        |
+| 23  | GPIO15   | PE03         | Unknown       | ❌      | ✅        |
 | 24  | GPIO2    | -            | Not connected | ✅      | ❌        |
 
 ## Side 3
@@ -45,7 +45,7 @@ There are 2 extra pins on this side, and they are not listed here as they are N/
 | Pin | Pin Desc | Connected To | Description   | Traced? | Verified? |
 | --- | -------- | ------------ | ------------- | ------- | --------- |
 | 25  | GPIO0    | J117 1       |               | ✅      | ❌        |
-| 26  | GPIO4    | J118 3       |               | ✅      | ❌        |
+| 26  | GPIO4    | PA26 J118 3  | Unknown       | ✅      | ✅        |
 | 27  | GPIO16   | J117 4       |               | ✅      | ❌        |
 | 28  | GPIO17   | -            | Not connected | ✅      | ❌        |
 | 29  | GPIO5    | J118 1       | Unknown       | ✅      | ❌        |
