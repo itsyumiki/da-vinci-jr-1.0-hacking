@@ -9,6 +9,7 @@ The place where I dump my clipboard contents so I don't lose them
 - https://github.com/Duet3D/RepRapFirmware/issues/190
 - https://github.com/luc-github/Repetier-Firmware-4-Davinci/blob/master/lcd-4x16-bn.pdf
 - https://www.ti.com/lit/ds/symlink/txb0108.pdf
+- https://www.cleancss.com/user-manuals/YOP/GS2100MIE
 
 New pinouts to sync later:
 
