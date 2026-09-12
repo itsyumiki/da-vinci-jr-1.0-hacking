@@ -148,3 +148,19 @@ I mapped the ESP32 (?) pinout, but i started doubting that its an ESP32. Most po
 ### Update 12.09.2026 05:25 GMT+3:
 
 I figured out the device is not an ESP32 but rather probably a GainSpan chip, like a GS2100MIE. There are some XYZPrinting specific manuals like [this one](https://www.cleancss.com/user-manuals/YOP/GS2100MIE). It has a "XYZ Printing 20140722" watermark and is marked preliminary confidential, but funny thing is neither companies dont exist anymore (sold and now dead)
+
+### Update 12.09.2026 17:45 GMT+3:
+
+I have traced even more pins, with only untraced pins being cam R/L (they go to U16, an unpopulated 6.5x6.5mm QFN 36 pin chip. Tracing doesnt help, as they dont connect to U2.) and BedNTC (i couldnt find which pin listens for it due to unpopulated resistor/capacitors near U2. I need to manually trace it, which seems hard and not necessary). I _could_ trace the U2 to U16, but it seems unnecessary for me at the moment.
+
+Also i am bamboozled about the board having a Bed NTC port existing but no bed heater port.
+
+I also traced unused and unpopulated pins like E2, 3D motor, Laser R/L, 3D led R/L, extra reflow fan and nfc pins not because i need them but rather that we can use those pins as general I/O pins. For example, 3D led port has 2 12V power and 2 3.3V signal lines available. Or the Laser ports has 1 3.3V signal per port, "TopHOME" port has 3.3V power and 3.3V signal available. We can add any extra hardware to these pins if needed.
+
+Current firmware state is, i switched to figuring out the wifi chip connection since Duet is weirdly very dependent on it and using Pronterface or Octoprint to control it over USB is hard.
+
+I also need to figure out how to update the LPC over SAM, and I plan to use the Duet's own firmware update way to do it. I thought about embedding the LPC firmware in SAM firmware as a payload, but that seems unnecessary and hard due to limited SAM flash space.
+
+I also want to use the external 4MB onboard flash for something, but it RRF seem to just use the SD card for everything.
+
+I am postponing the screen work once again, since if i can get the wifi working, i probably won't need it much. I will still try to work on it later if i feel like it though, since we can port marlin or klipper to this board.

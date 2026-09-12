@@ -25,7 +25,7 @@ We have 5 PIOs available, PA through PE.
 | PA8  |              |             | ❌      | ❌        |
 | PA9  |              |             | ❌      | ❌        |
 | PA10 |              |             | ❌      | ❌        |
-| PA11 |              |             | ❌      | ❌        |
+| PA11 | U5 1         | Flash CS    | ❌      | ❌        |
 | PA12 | U18 GPIO8    | Unknown     | ❌      | ✅        |
 | PA13 | U18 GPIO6    | Unknown     | ❌      | ✅        |
 | PA14 | U18 GPIO7    | Unknown     | ❌      | ✅        |
