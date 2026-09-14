@@ -164,3 +164,27 @@ I also need to figure out how to update the LPC over SAM, and I plan to use the 
 I also want to use the external 4MB onboard flash for something, but it RRF seem to just use the SD card for everything.
 
 I am postponing the screen work once again, since if i can get the wifi working, i probably won't need it much. I will still try to work on it later if i feel like it though, since we can port marlin or klipper to this board.
+
+### Update 14.09.2026 16:55 GMT+3:
+
+It works! I got full controls working on it, including heater, fan, _extruder_, movement, SD card. My next step is to add wifi support so i can control it easier with duet wifi. I also need to fix and review a million things that GPT broke.
+
+### Update 14.09.2026 19:42 GMT+3:
+
+First print via RRF!
+
+Its vertically compressed due to miscalibrated Z stepss per mm, which made it a LOT harder for me to calibrate the first layer, and took me way longer than it should. I first tried to print [this](https://fullcontrol.xyz/#/models/b70938) since i thought it would be a great demo for the first layer, but i didnt know the Z axis problem at first, so it came out as a blob. Second time, it had problem extruding and was way too close to bed. On my third try, i decided to print [this](https://fullcontrol.xyz/#/models/393a4c) (with star inner reinforcement) instead, which still started bad, and i gave up after it also became a blob. At this point i was very fraustrated, and felt like Z layer was not moving. I decided to change extrusion height from the default 0.15mm to 0.25mm, and it started a lot better. Extruder was still skipping and fighting for its life, but i managed to get a print even if it looks like it had a piano dropped on it.
+
+| The print after its done                                   | How its supposed to look like                         |
+| ---------------------------------------------------------- | ----------------------------------------------------- |
+| ![The print on the bed](images/progress/first-print-2.jpg) | ![Original render](images/progress/first-print-5.png) |
+
+Here are some more images if you want to see:
+
+| While still printing                               | Post-print in a bad angle                  | On a cutting board with cm                             |
+| -------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| ![During print](images/progress/first-print-1.jpg) | ![Post](images/progress/first-print-3.jpg) | ![On cutting board](images/progress/first-print-4.jpg) |
+
+I used octoprint for it, and the printer was repeatedly crashing while trying to print.
+
+There are a lot of active problems, but it can still print! If you want to tinker with it, its probably easy to fix, since most of the remaining problems are calibration and my skill issues. Though its still not printing as good as the original firmware, at least its printing freely!
