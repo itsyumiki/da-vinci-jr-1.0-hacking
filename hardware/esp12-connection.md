@@ -25,14 +25,14 @@ The U18 gives us:
 
 | Pin  | Function |
 | ---- | -------- |
-| PD24 |
+| PD24 | Generic  |
 | GND  | Ground   |
-| PB02 |
+| PB02 | Generic  |
 | PA13 | MOSI     |
 | PA14 | SCLK     |
 | PA12 | MISO     |
-| PE03 |
-| PA26 |
+| PE03 | Generic  |
+| PA26 | Generic  |
 
 The closeby pins:
 
@@ -49,19 +49,21 @@ Connecting all of these pins should be enough for full functionality, but i woul
 
 I will be matching the pins in the way that requires the shortest wire connections and easiest to solder.
 
-Current proposal:
+Current proposal (it uses all the available pins in order to be the shortest pinout):
 
 | ESP Pin | Function       | SAM Pin |
 | ------- | -------------- | ------- |
-| RST     | Reset          |         |
-| CH_PD   | Enable         |         |
+| RST     | Reset          | PD24    |
+| CH_PD   | Enable         | PD29    |
 | GPIO14  | SPI SCK        | PA14    |
 | GPIO12  | SPI MISO       | PA12    |
 | GPIO13  | SPI MOSI       | PA13    |
 | VCC     | 3.3V in        | J24 3   |
 | GND     | Ground         | GND     |
 | GPIO15  | SPI CS         |         |
-| GPIO0   | Data ready     |         |
-| GPIO4   | Transfer ready |         |
+| GPIO0   | Data ready     | PE03    |
+| GPIO4   | Transfer ready | PA26    |
 | GPIO3   | RXD            | PC24    |
 | GPIO1   | TXD            | PB14    |
+
+Second base functionality proposal will be added below soon.

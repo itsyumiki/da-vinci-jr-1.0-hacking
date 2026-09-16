@@ -10,15 +10,17 @@ This repository is a mix of:
 
 I try to add source links whenever possible.
 
-## Status
+## Project Status
 
 | Task Name  | Description                             | Status | Main Board | Sub Board | Hotend Board |
 | ---------- | --------------------------------------- | ------ | ---------- | --------- | ------------ |
-| Pinouts    | Trace all of the pinouts of the printer | 99%    | 98%        | 100%      | 100%         |
+| Pinouts    | Trace all of the pinouts of the printer | 99%    | 99%        | 100%      | 100%         |
 | Schematics | Draw the schematics of the printer      | 85%    | 30%        | 100%      | 100%         |
-| Configs    | Build firmware configs for the printer  | 0%     | -          | -         | -            |
+| Configs    | Build firmware configs for the printer  | 90%    | -          | -         | -            |
 
-All of the populated pinouts has been traced. Some unpopulated pins are traced as well. The status stays at 99% because I plan to populate the wifi chip (it seems to be ESP32-WROOM-32) and I haven't traced the pins for it. The current traced pins are more than enough for a fully functional firmware.
+Every visible connector has been traced. There are extra SAM pins that seem to have a connection but tracing where they are connected is extremely difficult and not worth the effort as the current pinout provides a very rich set of pins for our use.
+
+There is RepRapFirmware builds available in the [RepRapFirmware repo actions](https://github.com/itsyumiki/RepRapFirmware-for-da-vinci-jr-1.0/actions/workflows/build.yml). Keep in mind that they are still in development, and some functionality might break on some builds. You can use the `sys` folder in the same repository for the default configurations.
 
 ## More Information
 
