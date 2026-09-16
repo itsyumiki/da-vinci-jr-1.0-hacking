@@ -46,3 +46,22 @@ The closeby pins:
 Connecting all of these pins should be enough for full functionality, but i would like to prioritize basic functionality pins to use the U18 so we are not dependent on the closeby pins.
 
 **FIXME:** Create 2 guides, one for using the U18 only, and another one for the full connection.
+
+I will be matching the pins in the way that requires the shortest wire connections and easiest to solder.
+
+Current proposal:
+
+| ESP Pin | Function       | SAM Pin |
+| ------- | -------------- | ------- |
+| RST     | Reset          |         |
+| CH_PD   | Enable         |         |
+| GPIO14  | SPI SCK        | PA14    |
+| GPIO12  | SPI MISO       | PA12    |
+| GPIO13  | SPI MOSI       | PA13    |
+| VCC     | 3.3V in        | J24 3   |
+| GND     | Ground         | GND     |
+| GPIO15  | SPI CS         |         |
+| GPIO0   | Data ready     |         |
+| GPIO4   | Transfer ready |         |
+| GPIO3   | RXD            | PC24    |
+| GPIO1   | TXD            | PB14    |
