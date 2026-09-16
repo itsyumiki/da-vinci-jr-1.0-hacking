@@ -188,3 +188,7 @@ Here are some more images if you want to see:
 I used octoprint for it, and the printer was repeatedly crashing while trying to print.
 
 There are a lot of active problems, but it can still print! If you want to tinker with it, its probably easy to fix, since most of the remaining problems are calibration and my skill issues. Though its still not printing as good as the original firmware, at least its printing freely!
+
+### Update 17.09.2026 00:50 GMT+3:
+
+I have decided to prioritize the WiFi again after getting my second print much better. Duet seems to be very WebUI centered, and it would be easier to setup WebUI and continue debugging that way instead of trying to use it over UART. Or i will first checkout the webui-on-pi way of duet and hope it works.
