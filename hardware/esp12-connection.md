@@ -49,12 +49,16 @@ Connecting all of these pins should be enough for full functionality, but i woul
 
 I will be matching the pins in the way that requires the shortest wire connections and easiest to solder.
 
+Okay a bit of plan change, i plan to solder the ESP12 upside down (shield side down) so the pin-heavy right side of ESP aligns with the pin heavy left side of U18 and the connectors. I feel like it might make it a bit easier to solder too, since the pins on the current U18 footprint have very wrong spacings and short the pins on ESP12.
+
+**Warning:** The proposals below are just a snapshot of my mental proposal, not a final design yet at all. It might include shorts, mislabeled connections, and more. When its finalized, firmware built and flashed, i will update this guide to remove the warnings and the extra notes.
+
 Current proposal (it uses all the available pins in order to be the shortest pinout):
 
 | ESP Pin | Function       | SAM Pin |
 | ------- | -------------- | ------- |
-| RST     | Reset          | PD24    |
-| CH_PD   | Enable         | PD29    |
+| RST     | Reset          | PD29    |
+| CH_PD   | Enable         | PC24    |
 | GPIO14  | SPI SCK        | PA14    |
 | GPIO12  | SPI MISO       | PA12    |
 | GPIO13  | SPI MOSI       | PA13    |
@@ -66,4 +70,19 @@ Current proposal (it uses all the available pins in order to be the shortest pin
 | GPIO3   | RXD            | PC24    |
 | GPIO1   | TXD            | PB14    |
 
-Second base functionality proposal will be added below soon.
+Second base functionality proposal:
+
+| ESP Pin | Function       | SAM Pin |
+| ------- | -------------- | ------- |
+| RST     | Reset          | PD29    |
+| CH_PD   | Enable         | PC24    |
+| GPIO14  | SPI SCK        | PA14    |
+| GPIO12  | SPI MISO       | PA12    |
+| GPIO13  | SPI MOSI       | PA13    |
+| VCC     | 3.3V in        | J24 3   |
+| GND     | Ground         | GND     |
+| GPIO15  | SPI CS         |         |
+| GPIO0   | Data ready     | PE03    |
+| GPIO4   | Transfer ready | PA26    |
+| GPIO3   | RXD            | PC24    |
+| GPIO1   | TXD            | PB14    |
