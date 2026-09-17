@@ -42,6 +42,7 @@ The closeby pins:
 | 3.3V | J24 3     | TopHOME |
 | PC24 | J8 2      | LASER R |
 | PB14 | J7 2      | LASER L |
+| 3.3V | R86       | BedNTC  |
 
 Connecting all of these pins should be enough for full functionality, but i would like to prioritize basic functionality pins to use the U18 so we are not dependent on the closeby pins.
 
@@ -49,40 +50,46 @@ Connecting all of these pins should be enough for full functionality, but i woul
 
 I will be matching the pins in the way that requires the shortest wire connections and easiest to solder.
 
-Okay a bit of plan change, i plan to solder the ESP12 upside down (shield side down) so the pin-heavy right side of ESP aligns with the pin heavy left side of U18 and the connectors. I feel like it might make it a bit easier to solder too, since the pins on the current U18 footprint have very wrong spacings and short the pins on ESP12.
+Okay a bit of plan change, i plan to solder the ESP12 upside down (shield side down) so the pin-heavy right side of ESP aligns with the gpio pin heavy left side of U18 and the connectors. I feel like it might make it a bit easier to solder too, since the pins on the current U18 footprint have very wrong spacings and short the pins on ESP12.
+
+Another note: every sam pin here is explicitly driven and default to high on boot, but we need to ground the reset pin since while sam is updating itself, the status is undefined.
 
 **Warning:** The proposals below are just a snapshot of my mental proposal, not a final design yet at all. It might include shorts, mislabeled connections, and more. When its finalized, firmware built and flashed, i will update this guide to remove the warnings and the extra notes.
 
 Current proposal (it uses all the available pins in order to be the shortest pinout):
 
+### Left side
+
 | ESP Pin | Function       | SAM Pin |
 | ------- | -------------- | ------- |
-| RST     | Reset          | PD29    |
-| CH_PD   | Enable         | PC24    |
-| GPIO14  | SPI SCK        | PA14    |
-| GPIO12  | SPI MISO       | PA12    |
-| GPIO13  | SPI MOSI       | PA13    |
-| VCC     | 3.3V in        | J24 3   |
+| TXD0    | UART TXD       | PD29    |
+| RXD0    | UART RXD       | PC24    |
+| GPIO4   | Transfer ready | PB14    |
+| GPIO0   | Data ready     | PD24    |
+| GPIO15  | SPI CS         | PB02    |
 | GND     | Ground         | GND     |
-| GPIO15  | SPI CS         |         |
-| GPIO0   | Data ready     | PE03    |
-| GPIO4   | Transfer ready | PA26    |
-| GPIO3   | RXD            | PC24    |
-| GPIO1   | TXD            | PB14    |
+
+### Right side
+
+| ESP Pin | Function | SAM Pin |
+| ------- | -------- | ------- |
+| RST     | Reset    | PA26    |
+| CH_PD   | Enable   | PE03    |
+| GPIO14  | SPI SCK  | PA14    |
+| GPIO12  | SPI MISO | PA12    |
+| GPIO13  | SPI MOSI | PA13    |
+| VCC     | 3.3V in  | R86     |
 
 Second base functionality proposal:
 
 | ESP Pin | Function       | SAM Pin |
 | ------- | -------------- | ------- |
-| RST     | Reset          | PD29    |
-| CH_PD   | Enable         | PC24    |
+| RST     | Reset          | PA26    |
 | GPIO14  | SPI SCK        | PA14    |
 | GPIO12  | SPI MISO       | PA12    |
 | GPIO13  | SPI MOSI       | PA13    |
-| VCC     | 3.3V in        | J24 3   |
+| VCC     | 3.3V in        | R86     |
 | GND     | Ground         | GND     |
-| GPIO15  | SPI CS         |         |
-| GPIO0   | Data ready     | PE03    |
-| GPIO4   | Transfer ready | PA26    |
-| GPIO3   | RXD            | PC24    |
-| GPIO1   | TXD            | PB14    |
+| GPIO15  | SPI CS         | PB02    |
+| GPIO0   | Data ready     | PD24    |
+| GPIO4   | Transfer ready | PB14    |

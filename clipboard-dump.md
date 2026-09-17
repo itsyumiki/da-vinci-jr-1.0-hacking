@@ -52,20 +52,22 @@ GPIO4
 
 ###
 
-PD24
+3.3V
+PD24 RTC RESET
 .
 .
 GND
 ;
+3.3V
 .
 .
 .
-.
-PB02
+PB02 CS
 PA13 MOSI
 PA14 SCLK
 PA12 MISO
-PE03
+PE03 INT
+.
 .
 ;
 .
