@@ -78,18 +78,8 @@ Current proposal (it uses all the available pins in order to be the shortest pin
 | GPIO14  | SPI SCK  | PA14    |
 | GPIO12  | SPI MISO | PA12    |
 | GPIO13  | SPI MOSI | PA13    |
-| VCC     | 3.3V in  | R86     |
+| VCC     | 3.3V in  | 3.3V    |
 
-Second base functionality proposal:
+The current proposal is pretty solid on paper, but we need to verify it by building a firmware with these pinouts and hardware testing it.
 
-| ESP Pin | Function       | SAM Pin |
-| ------- | -------------- | ------- |
-| RST     | Reset          | PA26    |
-| GPIO14  | SPI SCK        | PA14    |
-| GPIO12  | SPI MISO       | PA12    |
-| GPIO13  | SPI MOSI       | PA13    |
-| VCC     | 3.3V in        | R86     |
-| GND     | Ground         | GND     |
-| GPIO15  | SPI CS         | PB02    |
-| GPIO0   | Data ready     | PD24    |
-| GPIO4   | Transfer ready | PB14    |
+Second base functionality proposal will be added later.
