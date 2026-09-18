@@ -64,7 +64,7 @@ We have 5 PIOs available, PA through PE.
 | PB10 | DDM          | USB data +    | ❌      | ❌        |
 | PB11 | DDP          | USB data -    | ❌      | ❌        |
 | PB12 | SW6          | Erase flash   | ✅      | ✅        |
-| PB13 |              |               |         |           |
+| PB13 | J11 J5       | Unknown conn  | ❌      | ✅        |
 | PB14 | J7 LASER L   | Left laser    | ❌      | ✅        |
 
 ## PIO C
