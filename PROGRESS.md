@@ -192,3 +192,19 @@ There are a lot of active problems, but it can still print! If you want to tinke
 ### Update 17.09.2026 00:50 GMT+3:
 
 I have decided to prioritize the WiFi again after getting my second print much better. Duet seems to be very WebUI centered, and it would be easier to setup WebUI and continue debugging that way instead of trying to use it over UART. Or i will first checkout the webui-on-pi way of duet and hope it works.
+
+### Update 18.09.2026 18:25 GMT+3:
+
+I released the first proper build, you can check it [here](https://github.com/itsyumiki/RepRapFirmware-for-da-vinci-jr-1.0/releases/tag/1.0.0).
+
+Too tired to write the detailed flashing guide at the moment, ill just give a basic guide here:
+
+Short the pads of the SW6 on the motherboard (next to the main MCU). Download the bins, connect printer to pc. Figure out the port. Use the Justfile to flash the main bin to the printer.
+
+Then take an SD card, format as MBR, copy the `sys` folder from the repo into it(ill make a release of them too), then create a `firmware` folder, put the rest of the bins you downloaded to there (esp and lpc bins). Then extract the webui-sd zip to the sd card in a folder named `www`
+
+Then put the sd card in, boot the device, run `M997 S3` to flash the lpc
+
+If you want to use wifi, check out the [ESP12 pinout file](hardware/esp12-connection.md) and connect it that way. Ill also make a guide on this, as my notes are hard to read probably. [this file](clipboard-dump.md) might also help a bit, but you can just wait for the guide. Ill probably write it tonight at least.
+
+Make sure to dump the firmwares and stuff. The flash chip is explicitly disabled and unselected in the firmware to prevent accidental overwriting.
