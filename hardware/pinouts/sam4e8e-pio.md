@@ -85,8 +85,9 @@ We have 5 PIOs available, PA through PE.
 | PC11 |              |             |         |           |
 | PC12 |              |             |         |           |
 | PC13 | LCD E        | Enable      | ❌      | ✅        |
+| PC13 | PIO0_1       | LPC ISP     | ❌      | ✅        |
 | PC14 |              |             |         |           |
-| PC15 |              |             |         |           |
+| PC15 | PIO0_0       | LPC reset   | ❌      | ✅        |
 | PC16 |              |             |         |           |
 | PC17 | 3dLED 4      | 3D led      | ❌      | ✅        |
 | PC18 | LCD RS       | RS line     | ❌      | ✅        |
@@ -103,6 +104,8 @@ We have 5 PIOs available, PA through PE.
 | PC29 |              |             |         |           |
 | PC30 |              |             |         |           |
 | PC31 |              |             |         |           |
+
+> NOTE: I will verify the PC13 later as i dont remember all the pinouts and unable to test.
 
 ## PIO D
 
