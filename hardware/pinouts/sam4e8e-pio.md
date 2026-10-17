@@ -36,7 +36,7 @@ We have 5 PIOs available, PA through PE.
 | PA19 |              |               | ❌      | ❌        |
 | PA20 |              |               | ❌      | ❌        |
 | PA21 | SW2          | Down btn      | ❌      | ✅        |
-| PA22 |              |               | ❌      | ❌        |
+| PA22 | LCD E        | Enable        | ❌      | ✅        |
 | PA23 |              |               | ❌      | ❌        |
 | PA24 |              |               | ❌      | ❌        |
 | PA25 | SD CD        | Card detect   | ❌      | ✅        |
@@ -84,7 +84,6 @@ We have 5 PIOs available, PA through PE.
 | PC10 | LCD K (GND)  | Backlight   | ❌      | ✅        |
 | PC11 |              |             |         |           |
 | PC12 |              |             |         |           |
-| PC13 | LCD E        | Enable      | ❌      | ✅        |
 | PC13 | PIO0_1       | LPC ISP     | ❌      | ✅        |
 | PC14 |              |             |         |           |
 | PC15 | PIO0_0       | LPC reset   | ❌      | ✅        |
@@ -104,8 +103,6 @@ We have 5 PIOs available, PA through PE.
 | PC29 |              |             |         |           |
 | PC30 |              |             |         |           |
 | PC31 |              |             |         |           |
-
-> NOTE: I will verify the PC13 later as i dont remember all the pinouts and unable to test.
 
 ## PIO D
 

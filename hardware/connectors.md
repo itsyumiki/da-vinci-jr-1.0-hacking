@@ -97,7 +97,7 @@ The 22-pin LCD connector connects the main board with the sub-board, and carries
 | --- | ---------- | ----------- | --------- | --------- | ------------- | --------- |
 | 01  | +5V        | 5V Power    | ✅        | 5V        | 5V power      | ✅        |
 | 02  | GND        | Ground      | ✅        | GND       | Ground        | ✅        |
-| 03  | 111        | PC13        | ✅        | E         | LCD enable    | ✅        |
+| 03  | 111        | PA22        | ✅        | E         | LCD enable    | ✅        |
 | 04  | 82         | PC8         | ✅        | R/W       | LCD R/W       | ✅        |
 | 05  | U1_Pin1    | PC18        | ✅        | RS        | LCD RS        | ✅        |
 | 06  | 11         | PC0         | ✅        | D0        | LCD data bus  | ✅        |
